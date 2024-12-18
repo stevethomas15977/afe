@@ -1,5 +1,6 @@
 class NewMexicoLandSurveySystem:
     def __init__(self, 
+                 county: str,
                  township: int,
                  township_direction: str,
                  range: int,
@@ -14,6 +15,7 @@ class NewMexicoLandSurveySystem:
                  northeast_latitude: float=None,
                  northeast_longitude: float=None
         ):
+        self._county = county   
         self._township = township
         self._township_direction = township_direction
         self._range = range
@@ -28,7 +30,10 @@ class NewMexicoLandSurveySystem:
         self._northeast_latitude = northeast_latitude
         self._northeast_longitude = northeast_longitude
 
-
+    @property
+    def county(self):
+        return self._county
+    
     @property
     def township(self):
         return self._township

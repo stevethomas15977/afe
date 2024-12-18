@@ -932,7 +932,26 @@ class AFEDB:
                 northeast_longitude)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
+        SELECT_TEXAS_LAND_SURVEY_SYSTEM_DISTINCT_COUNTIES = """
+            SELECT DISTINCT county FROM texas_land_survey_system ORDER BY county ASC
+        """
         
+        SELECT_TEXAS_LAND_SURVEY_SYSTEM_DISTINCT_ABSTRACTS_BY_COUNTY = """
+            SELECT DISTINCT abstract FROM texas_land_survey_system WHERE county = ? ORDER BY abstract ASC
+        """
+
+        SELECT_TEXAS_LAND_SURVEY_SYSTEM_DISTINCT_BLOCK_BY_COUNTY_ASTRACT = """
+            SELECT DISTINCT block FROM texas_land_survey_system WHERE county = ? AND abstract = ? ORDER BY block ASC
+        """
+
+        SELECT_TEXAS_LAND_SURVEY_SYSTEM_DISTINCT_SECTION_BY_COUNTY_ASTRACT_BLOCK = """
+            SELECT DISTINCT section FROM texas_land_survey_system WHERE county = ? AND abstract = ? AND block = ? ORDER BY section ASC
+        """
+
+        SELECT_TEXAS_LAND_SURVEY_SYSTEM_BY_COUNTY = """
+            SELECT * FROM texas_land_survey_system WHERE county = ? ORDER BY abstract, block, section ASC
+        """
+
         SELECT_TEXAS_LAND_SURVEY_SYSTEM_BY_COUNTY_ABSTRACT_BLOCK_SECTION = """
             SELECT * FROM texas_land_survey_system WHERE county = ? AND abstract = ? AND block = ? AND section = ?
         """
@@ -942,8 +961,20 @@ class AFEDB:
         """
 
         ####### New Mexico Land Survey System Table ########
-        SELECT_NEW_MEXICO_LAND_SURVEY_SYSTEM_BY_TOWNSHIP_RANGE_SECTION = """
-            SELECT * FROM new_mexico_land_survey_system WHERE township = ? AND township_direction = ? AND range = ? AND range_direction = ? AND section = ?
+        SELECT_NEW_MEXICO_LAND_SURVEY_SYSTEM_DISTINCT_COUNTIES = """
+            SELECT DISTINCT county FROM new_mexico_land_survey_system ORDER BY county ASC
+        """ 
+
+        SELECT_NEW_MEXICO_LAND_SURVEY_SYSTEM_DISTINCT_TOWNSHIPS_BY_COUNTY = """
+            SELECT DISTINCT township FROM new_mexico_land_survey_system WHERE county = ? ORDER BY township ASC
+        """
+
+        SELECT_NEW_MEXICO_LAND_SURVEY_SYSTEM_BY_COUNTY = """
+            SELECT * FROM new_mexico_land_survey_system WHERE county = ? ORDER BY township, township_direction, range, range_direction, section ASC
+        """
+
+        SELECT_NEW_MEXICO_LAND_SURVEY_SYSTEM_BY_COUNTY_TOWNSHIP_RANGE_SECTION = """
+            SELECT * FROM new_mexico_land_survey_system WHERE county = ? AND township = ? AND township_direction = ? AND range = ? AND range_direction = ? AND section = ?
         """
         
     def __init__(self, db_path=None):

@@ -71,4 +71,53 @@ class TexasLandSurveySystemRepository:
         finally:
             cursor.close()
 
- 
+    def get_distinct_counties(self) -> list[str]:
+        try:
+            cursor = Cursor(self.connection)
+            cursor.execute(AFEDB.SQL.SELECT_TEXAS_LAND_SURVEY_SYSTEM_DISTINCT_COUNTIES.value)
+            return [row[0] for row in cursor.fetchall()]
+        except DatabaseError as e:
+            raise ValueError(f"Unable to get distinct counties from Texas Land Survey System: {e}")
+        finally:
+            cursor.close()
+
+    def get_distinct_abstract_by_county(self, county: str) -> list[str]:
+        try:
+            cursor = Cursor(self.connection)
+            cursor.execute(AFEDB.SQL.SELECT_TEXAS_LAND_SURVEY_SYSTEM_DISTINCT_ABSTRACTS_BY_COUNTY.value, (county,))
+            return [row[0] for row in cursor.fetchall()]
+        except DatabaseError as e:
+            raise ValueError(f"Unable to get distinct abstract by county {county}: {e}")
+        finally:
+            cursor.close()
+        
+    def get_distinct_block_by_county_abstract(self, county: str, abstract: str) -> list[str]:
+        try:
+            cursor = Cursor(self.connection)
+            cursor.execute(AFEDB.SQL.SELECT_TEXAS_LAND_SURVEY_SYSTEM_DISTINCT_BLOCK_BY_COUNTY_ASTRACT.value, (county, abstract))
+            return [row[0] for row in cursor.fetchall()]
+        except DatabaseError as e:
+            raise ValueError(f"Unable to get distinct block by county {county} abstract {abstract}: {e}")
+        finally:
+            cursor.close()  
+
+    def get_distinct_section_by_county_abstract_block(self, county: str, abstract: str, block: str) -> list[str]:
+        try:
+            cursor = Cursor(self.connection)
+            cursor.execute(AFEDB.SQL.SELECT_TEXAS_LAND_SURVEY_SYSTEM_DISTINCT_SECTION_BY_COUNTY_ASTRACT_BLOCK.value, (county, abstract, block))
+            return [row[0] for row in cursor.fetchall()]
+        except DatabaseError as e:
+            raise ValueError(f"Unable to get distinct section by county {county} abstract {abstract} block {block}: {e}")
+        finally:
+            cursor.close()
+
+    def get_by_county(self, county: str) -> list[TexasLandSurveySystem]:
+        try:
+            cursor = Cursor(self.connection)
+            cursor.execute(AFEDB.SQL.SELECT_TEXAS_LAND_SURVEY_SYSTEM_BY_COUNTY.value, (county,))
+            rows = cursor.fetchall()
+            return [TexasLandSurveySystem(*row) for row in rows]
+        except DatabaseError as e:
+            raise ValueError(f"Unable to get texas land survey system by county {county}: {e}")
+        finally:
+            cursor.close()

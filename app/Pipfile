@@ -30,7 +30,6 @@ pymupdf = "*"
 isort = "*"
 fiona = "*"
 ncat-api = "*"
-nicegui = "*"
 regex = "*"
 boto3 = "*"
 pyarrow = "*"
@@ -43,6 +42,7 @@ folium = "*"
 flask = "*"
 autoindex = "*"
 html2image = "==2.0.5"
+nicegui = "*"
 
 [dev-packages]
 
