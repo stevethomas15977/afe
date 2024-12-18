@@ -969,6 +969,26 @@ class AFEDB:
             SELECT DISTINCT township FROM new_mexico_land_survey_system WHERE county = ? ORDER BY township ASC
         """
 
+        SELECT_NEW_MEXICO_LAND_SURVEY_SYSTEM_DISTINCT_TOWNSHIP_DIRECTIONS_BY_COUNTY_TOWNSHIP = """
+            SELECT DISTINCT township_direction FROM new_mexico_land_survey_system WHERE county = ? AND township = ? ORDER BY township_direction ASC
+        """
+
+        SELECT_NEW_MEXICO_LAND_SURVEY_SYSTEM_DISTINCT_RANGE_BY_COUTY_TOWNSHIP_TOWNSHIP_DIRECTION = """
+            SELECT DISTINCT range FROM new_mexico_land_survey_system WHERE county = ? AND township = ? AND township_direction = ? ORDER BY range ASC
+        """
+
+        SELECT_NEW_MEXICO_LAND_SURVEY_SYSTEM_DISTINCT_RANGE_DIRECTIONS_BY_COUTY_TOWNSHIP_TOWNSHIP_DIRECTION_RANGE = """
+            SELECT DISTINCT range_direction FROM new_mexico_land_survey_system WHERE county = ? AND township = ? AND township_direction = ? AND range = ? ORDER BY range_direction ASC
+        """
+
+        SELECT_NEW_MEXICO_LAND_SURVEY_SYSTEM_DISTINCT_SECTIONS_BY_COUNTY_TOWNSHIP_TOWNSHIP_DIRECTION_RANGE_RANGE_DIRECTION = """
+            SELECT DISTINCT section FROM new_mexico_land_survey_system WHERE county = ? AND township = ? AND township_direction = ? AND range = ? AND range_direction = ? ORDER BY section ASC
+        """
+
+        SELECT_NEW_MEXICO_LAND_SURVEY_SYSTEM = """
+            SELECT * FROM new_mexico_land_survey_system WHERE county = ? AND township = ? AND township_direction = ? AND range = ? AND range_direction = ? AND section = ?
+        """
+
         SELECT_NEW_MEXICO_LAND_SURVEY_SYSTEM_BY_COUNTY = """
             SELECT * FROM new_mexico_land_survey_system WHERE county = ? ORDER BY township, township_direction, range, range_direction, section ASC
         """

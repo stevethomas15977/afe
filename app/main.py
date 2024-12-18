@@ -1,10 +1,10 @@
 from nicegui import ui
-from services import TexasLandSurveySystemService
-from context import Context
-from models import TexasLandSurveySystem
 from helpers import ( texas_plss_block_section_overlay,
-                     draw_section_lines )
+                     apply_geojson_overlay )
+from services import ( NewMexicoLandSurveySystemService, TexasLandSurveySystemService )
+from context import Context
 import folium
+import os
 
 class Project:
     def __init__(self):
@@ -13,6 +13,11 @@ class Project:
         self.abstract = None
         self.block = None
         self.section = None
+        self.township = None
+        self.township_direction = None
+        self.range = None
+        self.range_direction = None
+        self.new_mexico_section = None
         self.system = 'NAD83'
         self.zone = 'Central'
 
@@ -20,14 +25,34 @@ class Project:
 def index():
     context = Context()
     texas_land_survey_service = TexasLandSurveySystemService(context._texas_land_survey_system_database_path)
+    new_mexico_land_survey_service = NewMexicoLandSurveySystemService(context._new_mexico_land_survey_system_database_path)
 
     project = Project()
 
+    async def handle_state_change():
+        if project.state == 'New Mexico':
+            new_mexico_container.visible = True
+            texas_container.visible = False
+            counties = new_mexico_land_survey_service.get_distinct_counties()
+        elif project.state == 'Texas':
+            texas_container.visible = True
+            new_mexico_container.visible = False
+            counties = texas_land_survey_service.get_distinct_counties()
+        county_select.clear()
+        county_select.options = counties
+        county_select.update()
+
     def handle_county_change():
-        abstracts = texas_land_survey_service.get_distinct_abstract_by_county(county_select.value)
-        abstract_select.clear()
-        abstract_select.options = abstracts
-        abstract_select.update()
+        if project.state == 'Texas':
+            abstracts = texas_land_survey_service.get_distinct_abstract_by_county(county_select.value)
+            abstract_select.clear()
+            abstract_select.options = abstracts
+            abstract_select.update()
+        elif project.state == 'New Mexico':
+            townships = new_mexico_land_survey_service.get_distinct_townships_by_county(county_select.value)
+            township_select.clear()
+            township_select.options = townships
+            township_select.update()
 
     def handle_abstract_change():
         blocks = texas_land_survey_service.get_distinct_block_by_county_abstract(project.county, project.abstract)
@@ -41,11 +66,41 @@ def index():
         section_select.options = sections
         section_select.update()
 
+    def handle_township_change():
+        township_directions = new_mexico_land_survey_service.get_distinct_township_directions_by_county_township(project.county, project.township)
+        township_direction_select.clear()
+        township_direction_select.options = township_directions
+        township_direction_select.update()
+
+    def handle_township_direction_change():
+        ranges = new_mexico_land_survey_service.get_distinct_ranges_by_county_township_range(project.county, project.township, project.township_direction)
+        range_select.clear()
+        range_select.options = ranges
+        range_select.update()
+
+    def handle_range_change(): 
+        range_directions = new_mexico_land_survey_service.get_distinct_range_directions_by_county_township_township_direction_range(project.county, project.township, project.township_direction, project.range)
+        range_direction_select.clear()
+        range_direction_select.options = range_directions
+        range_direction_select.update()
+
+    def handle_range_direction_change():
+        sections = new_mexico_land_survey_service.get_distinct_sections_by_county_township_township_direction_range_range_direction(project.county, project.township, project.township_direction, project.range, project.range_direction)
+        new_mexico_section_select.clear()
+        new_mexico_section_select.options = sections
+        new_mexico_section_select.update()
+
     async def handle_section_change():
         coordinates = {}
-        survey = texas_land_survey_service.get_by_county_abstract_block_section(project.county, project.abstract, project.block, project.section)
+
+        if project.state == 'Texas':
+            survey = texas_land_survey_service.get_by_county_abstract_block_section(project.county, project.abstract, project.block, project.section)
+        elif project.state == 'New Mexico':
+            survey = new_mexico_land_survey_service.get_by_county_township_range_section(project.county, project.township, project.township_direction, project.range, project.range_direction, project.new_mexico_section)
+
         if survey is None:
             return
+        
         if survey.southwest_latitude is not None and survey.southwest_longitude is not None:
             center = (survey.southwest_latitude, survey.southwest_longitude)
         elif survey.southeast_latitude is not None and survey.southeast_longitude is not None:
@@ -74,14 +129,24 @@ def index():
             map = folium.Map(location=[center[0], center[1]],
                            zoom_start=14,
                            tiles='OpenStreetMap')
-            # Draw the Texas PLSS Block Section Overlay
-            fips_codes = []
-            fips_codes.append(survey.fips_code)
-            texas_plss_block_section_overlay(context=context, fip_codes=fips_codes, map=map)
-            
-            # Draw the section lines
-            tooltip = f"{survey.abstract}-{survey.block}-{str(int(survey.section))}"
 
+            if project.state == 'Texas':
+                # Draw the Texas PLSS Overlay
+                fips_codes = []
+                fips_codes.append(survey.fips_code)
+                texas_plss_block_section_overlay(context=context, fip_codes=fips_codes, map=map)
+                # Draw the section lines
+                tooltip = f"{survey.abstract}-{survey.block}-{str(int(survey.section))}"
+            elif project.state == 'New Mexico':
+                # Draw the New Mexico PLSS Overlay
+                new_mexico_township_file_path = os.path.join(context.geojson_path, 'new_mexico', 'PLSSTownship.geojson')
+                apply_geojson_overlay(new_mexico_township_file_path, name='PLSS Townships', label='TWNSHPLAB', map=map)
+                new_mexico_sections_file_path = os.path.join(context.geojson_path, 'new_mexico', 'sections')
+                geojson_file = f"{survey.township}{survey.township_direction}-{survey.range}{survey.range_direction}.geojson"
+                apply_geojson_overlay(geojson_file_path=os.path.join(new_mexico_sections_file_path, geojson_file), name='PLSS Sections', label=context.nm_section_column, map=map)
+                tooltip = f"{project.township}-{project.township_direction}-{project.range}-{project.range_direction}-{project.section}"
+
+            # Draw the section lines
             if (coordinates.get('southwest_latitude') is not None and 
                 coordinates.get('southwest_longitude') is not None and
                 coordinates.get('southeast_latitude') is not None and
@@ -134,37 +199,60 @@ def index():
         ui.label('Botton Hole Survey Information').style('font-size: 1.8rem').classes('w-100')
         ui.separator()
         
-        counties = texas_land_survey_service.get_distinct_counties()
-        county_container = ui.column().style('width: 100%;').classes('justify-between')
-        with county_container:
-            county_select = ui.select(options=counties, 
+        state_county_container = ui.row().style('width: 100%;').classes('justify-left')
+        with state_county_container:
+            ui.select(options=['Texas', 'New Mexico'], 
+                with_input=True,
+                label='State',
+                on_change=lambda: handle_state_change()).bind_value(project, 'state').style('font-size: 1.2rem').classes('w-40')
+            county_select = ui.select(options=[], 
                 with_input=True,
                 label='County',
                 on_change=lambda: handle_county_change()).bind_value(project,'county').style('font-size: 1.2rem').classes('w-40')
+
         ui.separator()
         
-        abstract_container = ui.column().style('width: 100%;').classes('justify-between')
-        with abstract_container:
+        texas_container = ui.row().style('width: 100%;').classes('justify-left')
+        with texas_container:
             abstract_select = ui.select(options=[], 
                 with_input=True,
                 label='Abstract',
                 on_change=lambda: handle_abstract_change()).bind_value(project, 'abstract').style('font-size: 1.2rem').classes('w-40')
-        ui.separator()
         
-        block_container = ui.column().style('width: 100%;').classes('justify-between')
-        with block_container:
             block_select = ui.select(options=[], 
                 with_input=True,
                 label='Block', 
                 on_change=lambda: handle_block_change()).style('font-size: 1.2rem').bind_value(project, 'block').classes('w-40')
-        ui.separator()
-        
-        section_container = ui.column().style('width: 100%;').classes('justify-between')
-        with section_container:
+
             section_select = ui.select(options=[],
                 with_input=True,
                 label='Section',
                 on_change=lambda: handle_section_change()).style('font-size: 1.2rem').bind_value(project, 'section').classes('w-40')
+
+        new_mexico_container = ui.row().style('width: 100%;').classes('justify-left')
+        new_mexico_container.visible = False
+        with new_mexico_container:
+            township_select = ui.select(options=[], 
+                with_input=True,
+                label='Township',
+                on_change=lambda: handle_township_change()).bind_value(project, 'township').style('font-size: 1.2rem').classes('w-50')
+            township_direction_select = ui.select(options=[],
+                with_input=True,
+                label='Townhip Direction',
+                on_change=lambda: handle_township_direction_change()).bind_value(project, 'township_direction').style('font-size: 1.2rem').classes('w-80')
+            range_select = ui.select(options=[],
+                with_input=True,
+                label='Range',
+                on_change=lambda: handle_range_change()).bind_value(project, 'range').style('font-size: 1.2rem').classes('w-50')
+            range_direction_select = ui.select(options=[],
+                with_input=True,
+                label='Range Direction',
+                on_change=lambda: handle_range_direction_change()).bind_value(project, 'range_direction').style('font-size: 1.2rem').classes('w-80')
+            new_mexico_section_select = ui.select(options=[],
+                with_input=True,
+                label='Section',
+                on_change=lambda: handle_section_change()).style('font-size: 1.2rem').bind_value(project, 'new_mexico_section').classes('w-40')
+
         ui.separator()  
 
         map_container = ui.html().style('width: 100%; height: 800px;').classes('justify-between')
