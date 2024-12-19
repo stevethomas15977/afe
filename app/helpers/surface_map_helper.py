@@ -77,7 +77,7 @@ def apply_geojson_overlay(geojson_file_path: str, name: str, label:str, map: Map
             ),
         ).add_to(map)
 
-def texas_plss_block_section_overlay(context: Context, fip_codes: list[str], map: Map) -> None:
+def texas_plss_block_section_overlay(context: Context, abstract: str, fip_codes: list[str], map: Map) -> None:
     for fips_code in fip_codes:
         geojson_file_path = os.path.join(context.geojson_path, "texas", "block-section", f"surv{fips_code}p.geojson")
         # Load the GeoJSON file for abstracts
@@ -99,7 +99,8 @@ def texas_plss_block_section_overlay(context: Context, fip_codes: list[str], map
         block_gdf = gpd.GeoDataFrame.from_features(township_geojson_data['features'])
         for _, row in block_gdf.iterrows():
             centroid = row['geometry'].centroid
-            abstract = row['ABSTRACT_L']
+            if abstract != row['ABSTRACT_L']:
+                continue   
             block = row['LEVEL2_BLO']
             section = row['LEVEL3_SUR']
             if section is not None:

@@ -19,12 +19,23 @@ class Project:
         self.range = None
         self.range_direction = None
         self.new_mexico_section = None
-        self.surface_x = 940095
-        self.surface_y = 674680
-        self.bottom_hole_x = 939504
-        self.bottom_hole_y = 690284
         self.system = 'NAD27'
         self.zone = 'Central'
+        self.columns = [
+            {'headerName': 'ID', 'field': 'id', 'type': 'number'},
+            {'headerName': 'Name', 'field': 'name', 'editable': True, 'sortable': True},
+            {'headerName': 'Surface X', 'field': 'surface_x', 'editable': True, 'type': 'number'},
+            {'headerName': 'Surface Y', 'field': 'surface_y', 'editable': True, 'type': 'number'},
+            {'headerName': 'Bottom Hole X', 'field': 'bottom_hole_x', 'editable': True, 'type': 'number'},
+            {'headerName': 'Bottom Hole Y', 'field': 'bottom_hole_y', 'editable': True, 'type': 'number'},
+            {'field': 'surface_latitude', 'hide': True},
+            {'field': 'surface_longitude', 'hide': True},
+            {'field': 'bottom_hole_latitude', 'hide': True},
+            {'field': 'bottom_hole_longitude', 'hide': True}
+        ]
+        self.rows = [
+            {'id': 1, 'name': 'Moosehorn 1', 'surface_x': 940095, 'surface_y': 674680, 'bottom_hole_x': 939504, 'bottom_hole_y': 690284, 'system': 'NAD27', 'zone': 'Central'}
+        ]
 
 @ui.page('/')
 def index():
@@ -33,6 +44,23 @@ def index():
     new_mexico_land_survey_service = NewMexicoLandSurveySystemService(context._new_mexico_land_survey_system_database_path)
 
     project = Project()
+
+    def add_row():
+        new_id = max((dx['id'] for dx in project.rows), default=-1) + 1
+        project.rows.append({'id': new_id, 'name': '', 'age': None})
+        ui.notify(f'Added row with ID {new_id}')
+        aggrid.update()
+
+    def handle_cell_value_change(e):
+        new_row = e.args['data']
+        ui.notify(f'Updated row to: {e.args["data"]}')
+        project.rows[:] = [row | new_row if row['id'] == new_row['id'] else row for row in project.rows]
+
+    async def delete_selected():
+        selected_id = [row['id'] for row in await aggrid.get_selected_rows()]
+        project.rows[:] = [row for row in project.rows if row['id'] not in selected_id]
+        ui.notify(f'Deleted row with ID {selected_id}')
+        aggrid.update()
 
     async def handle_state_change():
         if project.state == 'New Mexico':
@@ -111,16 +139,22 @@ def index():
                 spcZone = 4203
             elif project.zone == 'West':
                 spcZone = 4203
-            if project.surface_x is not None and project.surface_y is not None:
-                surface_latitude, surface_longitude = spc_feet_to_latlon(northing=project.surface_y, 
-                                                                         easting=project.surface_x,
-                                                                         spcZone=spcZone,
-                                                                         inDatum=inDatum)
-            if project.bottom_hole_x is not None and project.bottom_hole_y is not None:
-                bottom_hole_latitude, bottom_hole_longitude = spc_feet_to_latlon(northing=project.bottom_hole_y, 
-                                                                                 easting=project.bottom_hole_x,
-                                                                                 spcZone=spcZone,
-                                                                                 inDatum=inDatum)
+
+            for row in project.rows:
+                if row['surface_x'] is not None and row['surface_y'] is not None:
+                    surface_latitude, surface_longitude = spc_feet_to_latlon(northing=row['surface_y'], 
+                                                                            easting=row['surface_x'],
+                                                                            spcZone=spcZone,
+                                                                            inDatum=inDatum)
+                    row['surface_latitude'] = surface_latitude
+                    row['surface_longitude'] = surface_longitude
+                if row['bottom_hole_x'] is not None and row['bottom_hole_y'] is not None:
+                    bottom_hole_latitude, bottom_hole_longitude = spc_feet_to_latlon(northing=row['bottom_hole_y'], 
+                                                                            easting=row['bottom_hole_x'],
+                                                                            spcZone=spcZone,
+                                                                            inDatum=inDatum)
+                    row['bottom_hole_latitude'] = bottom_hole_latitude
+                    row['bottom_hole_longitude'] = bottom_hole_longitude
                 
         elif project.state == 'New Mexico':
             pass
@@ -166,7 +200,7 @@ def index():
                 # Draw the Texas PLSS Overlay
                 fips_codes = []
                 fips_codes.append(survey.fips_code)
-                # texas_plss_block_section_overlay(context=context, fip_codes=fips_codes, map=map)
+                texas_plss_block_section_overlay(context=context, abstract=project.abstract, fip_codes=fips_codes, map=map)
                 # Draw the section lines
                 tooltip = f"{survey.abstract}-{survey.block}-{str(int(survey.section))}"
             elif project.state == 'New Mexico':
@@ -209,14 +243,22 @@ def index():
                     folium.PolyLine([start, end], color='black', tooltip=tooltip, weight=3.0).add_to(map)
 
             # Draw target wells
-            if (surface_latitude is not None and 
-                surface_longitude is not None and
-                bottom_hole_latitude is not None and
-                bottom_hole_longitude is not None):
-                    start = (float(surface_latitude), float(surface_longitude))
-                    end = (float(bottom_hole_latitude), float(bottom_hole_longitude))
-                    folium.PolyLine([start, end], color="orange", weight=3.0).add_to(map)
+            for row in project.rows:
+                if (row['surface_latitude'] is not None and 
+                    row['surface_longitude'] is not None and
+                    row['bottom_hole_latitude'] is not None and
+                    row['bottom_hole_longitude'] is not None):
+                        start = (float(row['surface_latitude']), float(row['surface_longitude']))
+                        end = (float(row['bottom_hole_latitude']), float(row['bottom_hole_longitude']))
+                        folium.PolyLine([start, end], color="orange", weight=3.0).add_to(map)
                 
+                        folium.Marker(
+                            location=start,
+                            icon=folium.DivIcon(icon_size=(150, 36), 
+                                icon_anchor=(0, 0),
+                                html=f'<div style="font-size: 20px; color: black;"><b>{row['id']}</b></div>'
+                            ),).add_to(map)
+                        
             # Convert the map to HTML
             map_html = map._repr_html_()
             # Display the map in NiceGUI
@@ -231,7 +273,7 @@ def index():
             <style>
             .q-field__label {
                 font-size: 1.8rem;
-                font-syle: bold;
+                font-style: bold;
                 font-weight: 600;
                 padding-bottom: 40px;
                 width: 100%;
@@ -239,31 +281,21 @@ def index():
             </style>
             """)
         
+        ui.add_body_html('''
+            <style>
+            .ag-theme-balham {
+                --ag-font-size: 20px;
+                --ag-font-weight: bold;
+                --ag-font-color: #000000;
+            }
+            </style>
+            ''')  
+              
         ui.label('Well Information').style('font-size: 1.8rem').classes('w-100').style('font-weight: bold;')
         ui.separator()
 
         surface_bottom_location_coordinates = ui.row().style('width: 100%;').classes('justify-left')
         with surface_bottom_location_coordinates:
-            surface_x = ui.number(label='Surface X', 
-                                    placeholder='Enter a whole number',
-                                    format='%d',
-                                    step=0,
-                                    precision=0).bind_value(project, 'surface_x').style('font-size: 1.2rem').classes('w-60')
-            surface_y = ui.number(label='Surface Y', 
-                                    placeholder='Enter a whole number',
-                                    format='%d',
-                                    step=0,
-                                    precision=0).bind_value(project, 'surface_y').style('font-size: 1.2rem').classes('w-60')
-            bottom_hole_x = ui.number(label='Bottom Hole X', 
-                                    placeholder='Enter a whole number',
-                                    format='%d',
-                                    step=0,
-                                    precision=0).bind_value(project, 'bottom_hole_x').style('font-size: 1.2rem').classes('w-60')
-            bottom_hole_y = ui.number(label='Bottom Hole Y', 
-                                    placeholder='Enter a whole number',
-                                    format='%d',
-                                    step=0,
-                                    precision=0).bind_value(project, 'bottom_hole_y').style('font-size: 1.2rem').classes('w-60')
             system_select = ui.select(options=['NAD27', 'NAD83'],
                                     with_input=True,
                                     label='System',
@@ -273,6 +305,16 @@ def index():
                                     label='Zone',
                                     on_change=lambda: handle_section_change()).style('font-size: 1.2rem').bind_value(project, 'zone').classes('w-40')
             
+            aggrid = ui.aggrid({
+                'columnDefs': project.columns,
+                'rowData': project.rows,
+                'rowSelection': 'multiple',
+                'stopEditingWhenCellsLoseFocus': True,
+            }).on('cellValueChanged', handle_cell_value_change).classes('max-h-40')
+
+            ui.button('Delete selected', on_click=delete_selected)
+            ui.button('New row', on_click=add_row)
+
         ui.separator()  
 
         ui.label('Botton Hole Survey Information').style('font-size: 1.8rem').classes('w-100').style('font-weight: bold;')
