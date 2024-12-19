@@ -34,14 +34,30 @@ class Project:
             {'headerName': 'Surface Y', 'field': 'surface_y', 'editable': True, 'type': 'number', 'cellStyle':  {'textAlign': 'center'}},
             {'headerName': 'Bottom Hole X', 'field': 'bottom_hole_x', 'editable': True, 'type': 'number', 'cellStyle':  {'textAlign': 'center'}},
             {'headerName': 'Bottom Hole Y', 'field': 'bottom_hole_y', 'editable': True, 'type': 'number', 'cellStyle':  {'textAlign': 'center'}},
+            {'headerName': 'Landing Zone', 'field': 'lz', 'editable': True, 'sortable': True,  'cellStyle':  {'textAlign': 'center'}, 'cellEditor': 'agSelectCellEditor',
+             'cellEditorParams': {'values': ['1BSSD','2BS','2BSSD','3BS','3BSSH','3BSSD','WXY','WAU','WAL','WBU','WBL','WC','WD']}},
+            {'headerName': 'Perf Interval', 'field': 'perf_int', 'editable': True, 'type': 'number', 'cellStyle':  {'textAlign': 'center'}},
+            {'headerName': 'SS Depth', 'field': 'ssd', 'editable': True, 'type': 'number', 'cellStyle':  {'textAlign': 'center'},
+             'valueFormatter': 'value > 0 ? value * -1 : value'},
             {'field': 'surface_latitude', 'hide': True},
             {'field': 'surface_longitude', 'hide': True},
             {'field': 'bottom_hole_latitude', 'hide': True},
             {'field': 'bottom_hole_longitude', 'hide': True}
         ]
         self.rows = [
-            {'id': 1, 'name': 'Moosehorn 1', 'surface_x': 940095, 'surface_y': 674680, 'bottom_hole_x': 939504, 'bottom_hole_y': 690284, 'system': 'NAD27', 'zone': 'Central'}
+            {'id': 1, 
+             'name': 'MOOSEHORN 54-1-41-44 G 61H', 
+             'surface_x': 960823, 
+             'surface_y': 832675, 
+             'bottom_hole_x': 960499, 
+             'bottom_hole_y': 821876, 
+             'lz': '2BSS', 
+             'perf_int': 10414, 
+             'ssd': -6924, 
+             'system': 'NAD27', 
+             'zone': 'Central'}
         ]
+        self.offset_wells = []
 
 @ui.page('/')
 def index():
@@ -64,8 +80,11 @@ def index():
                 well_data_expansion.clear()
                 with well_data_expansion:
                     ui.table(columns=columns, rows=rows, row_key=row_key, pagination=10).style('width: 100%; border: 1px solid black;')
+                    project.offset_wells = rows
+                    survey_data_ulpload.visible = True
             elif file_type == 'SURVEY_DATA':
                 project.offset_survey_file = temp_file.name
+            
             ui.notify(f"Uploaded {event.name} successfully!", type='positive')
         except Exception as e:
             ui.notify(f"Failed to upload the file: {e}", type='negative')
@@ -77,7 +96,11 @@ def index():
         try:
             wells = read_excel(io.BytesIO(bytes), engine='openpyxl')
 
-            for column in wells.columns:
+            wells = wells.sort_values(by=['LeaseName'], ascending=True)
+
+            producing_wells = wells[wells["ENVWellboreStatus"] == "PRODUCING"]
+
+            for column in producing_wells.columns:
                 col_dict = dict()
                 if column in well_headers():
                     col_dict['name'] = column
@@ -87,11 +110,23 @@ def index():
                     col_dict['align'] = 'center'
                     columns.append(col_dict)                            
 
-            for row in wells.to_dict(orient='records'):
+            for row in producing_wells.to_dict(orient='records'):
                 row_dict = dict()
+
+                try:
+                    for header in well_headers():
+                        if row.get(header) is None or isna(row.get(header)):
+                            raise Exception(f"Missing value for {header}")
+                except Exception as e:
+                    continue
+                
+                if 'ENVInterval' == column:
+                    if 'DELAWARE VERTICAL' == row.get(column):
+                        continue
                 for column in well_headers():
                     if column in well_headers():
-                        if 'FirstProdDate' == column:
+                        if ('FirstProdDate' == column or 
+                            'LastProducingMonth' == column):
                             if not isna(row.get(column)):
                                 row_dict[column] = str(row.get(column).strftime("%Y-%m-%d"))
                             else:
@@ -107,19 +142,16 @@ def index():
     
     def well_headers() -> list:
         return [
-            "API_UWI", 
-            "WellName", 
-            'CompletionNumber',
-            "ENVWellboreStatus", 
-            "WellPadDirection", 
-            "ENVOperator", 
-            "ENVWellStatus", 
-            "LeaseName", 
-            "ENVInterval", 
-            "Formation", 
-            "FirstProdDate", 
-            "Latitude", 
-            "Longitude", 
+            "API_UWI",
+            "WellName",
+            "WellPadDirection",
+            "ENVOperator",
+            "ENVWellStatus",
+            "LeaseName",
+            "ENVInterval",
+            "FirstProdDate",
+            "Latitude",
+            "Longitude",
             "Latitude_BH",
             "Longitude_BH",
             "TVD_FT",
@@ -129,12 +161,9 @@ def index():
             "PerfInterval_FT",
             "LateralLength_FT",
             "ProppantIntensity_LBSPerFT",
-            "StateProvince",
-            "County",
-            "Abstract",
-            "Township",
-            "Range",
-            "CumOil_BBL"
+            "CumOil_BBL",
+            "LastProducingMonth",
+            "CumOil_BBLPer1000FT"
         ]
     
     def add_row():
@@ -348,9 +377,21 @@ def index():
                             location=start,
                             icon=folium.DivIcon(icon_size=(150, 36), 
                                 icon_anchor=(0, 0),
-                                html=f'<div style="font-size: 20px; color: black;"><b>{row['id']}</b></div>'
+                                html=f'<div style="font-size: 20px; color: black;"><b></b></div>'
                             ),).add_to(map)
                         
+            # Draw offset wells
+            for row in project.offset_wells:
+                start = (float(row['Latitude']), float(row['Longitude']))
+                end = (float(row['Latitude_BH']), float(row['Longitude_BH']))
+                folium.PolyLine([start, end], color="green", weight=3.0).add_to(map)
+                folium.Marker(
+                    location=start,
+                    icon=folium.DivIcon(icon_size=(150, 36), 
+                        icon_anchor=(0, 0),
+                        html=f'<div style="font-size: 20px; color: black;">{row["id"]}<b></b></div>'
+                    ),).add_to(map)
+
             # Convert the map to HTML
             map_html = map._repr_html_()
             # Display the map in NiceGUI
@@ -400,9 +441,10 @@ def index():
         offset_well_data_files_container = ui.row().style('width: 100%;').classes('justify-left')
         with offset_well_data_files_container:
             ui.select(options=['Enverus'], label='Provider').style('font-size: 1.2rem').bind_value(project, 'provider').classes('w-40')            
-            ui.upload(label='Well Data', on_upload=lambda event: handle_file_upload(event=event, file_type='WELL_DATA')).style('font-size: 1.2rem').classes('w-60')
-            ui.upload(label='Survey Data', on_upload=lambda event: handle_file_upload(event=event, file_type='SURVEY_DATA')).style('font-size: 1.2rem').classes('w-60')        
-        
+            well_data_upload = ui.upload(label='Well Data', on_upload=lambda event: handle_file_upload(event=event, file_type='WELL_DATA')).style('font-size: 1.2rem').classes('w-60')
+            survey_data_ulpload = ui.upload(label='Survey Data', on_upload=lambda event: handle_file_upload(event=event, file_type='SURVEY_DATA')).style('font-size: 1.2rem').classes('w-60')      
+            survey_data_ulpload.visible = False
+
             well_data_expansion = ui.expansion('Well Data', icon='oil_barrel').classes('w-full').style('width: 100%; font-size: 1.3rem;')
             with well_data_expansion:
                 ui.space()
