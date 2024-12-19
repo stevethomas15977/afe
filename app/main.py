@@ -1,6 +1,7 @@
 from nicegui import ui
 from helpers import ( texas_plss_block_section_overlay,
-                     apply_geojson_overlay )
+                     apply_geojson_overlay,
+                     spc_feet_to_latlon )
 from services import ( NewMexicoLandSurveySystemService, TexasLandSurveySystemService )
 from context import Context
 import folium
@@ -18,7 +19,11 @@ class Project:
         self.range = None
         self.range_direction = None
         self.new_mexico_section = None
-        self.system = 'NAD83'
+        self.surface_x = 940095
+        self.surface_y = 674680
+        self.bottom_hole_x = 939504
+        self.bottom_hole_y = 690284
+        self.system = 'NAD27'
         self.zone = 'Central'
 
 @ui.page('/')
@@ -94,6 +99,33 @@ def index():
         coordinates = {}
 
         if project.state == 'Texas':
+            if project.system == 'NAD27':
+                inDatum = "NAD27"
+                outDatum = "NAD27"
+            elif project.system == 'NAD83':
+                inDatum = "NAD83(2011)"
+                outDatum = "NAD83(2011)"
+            if project.zone == 'East':
+                spcZone = 4203
+            elif project.zone == 'Central':
+                spcZone = 4203
+            elif project.zone == 'West':
+                spcZone = 4203
+            if project.surface_x is not None and project.surface_y is not None:
+                surface_latitude, surface_longitude = spc_feet_to_latlon(northing=project.surface_y, 
+                                                                         easting=project.surface_x,
+                                                                         spcZone=spcZone,
+                                                                         inDatum=inDatum)
+            if project.bottom_hole_x is not None and project.bottom_hole_y is not None:
+                bottom_hole_latitude, bottom_hole_longitude = spc_feet_to_latlon(northing=project.bottom_hole_y, 
+                                                                                 easting=project.bottom_hole_x,
+                                                                                 spcZone=spcZone,
+                                                                                 inDatum=inDatum)
+                
+        elif project.state == 'New Mexico':
+            pass
+
+        if project.state == 'Texas':
             survey = texas_land_survey_service.get_by_county_abstract_block_section(project.county, project.abstract, project.block, project.section)
         elif project.state == 'New Mexico':
             survey = new_mexico_land_survey_service.get_by_county_township_range_section(project.county, project.township, project.township_direction, project.range, project.range_direction, project.new_mexico_section)
@@ -134,7 +166,7 @@ def index():
                 # Draw the Texas PLSS Overlay
                 fips_codes = []
                 fips_codes.append(survey.fips_code)
-                texas_plss_block_section_overlay(context=context, fip_codes=fips_codes, map=map)
+                # texas_plss_block_section_overlay(context=context, fip_codes=fips_codes, map=map)
                 # Draw the section lines
                 tooltip = f"{survey.abstract}-{survey.block}-{str(int(survey.section))}"
             elif project.state == 'New Mexico':
@@ -172,10 +204,19 @@ def index():
                 coordinates.get('northwest_longitude') is not None and
                 coordinates.get('southwest_latitude') is not None and
                 coordinates.get('southwest_longitude') is not None):
-                start = (coordinates['northwest_latitude'], coordinates['northwest_longitude'])
-                end = (coordinates['southwest_latitude'], coordinates['southwest_longitude'])
-                folium.PolyLine([start, end], color='black', tooltip=tooltip, weight=3.0).add_to(map)
+                    start = (coordinates['northwest_latitude'], coordinates['northwest_longitude'])
+                    end = (coordinates['southwest_latitude'], coordinates['southwest_longitude'])
+                    folium.PolyLine([start, end], color='black', tooltip=tooltip, weight=3.0).add_to(map)
 
+            # Draw target wells
+            if (surface_latitude is not None and 
+                surface_longitude is not None and
+                bottom_hole_latitude is not None and
+                bottom_hole_longitude is not None):
+                    start = (float(surface_latitude), float(surface_longitude))
+                    end = (float(bottom_hole_latitude), float(bottom_hole_longitude))
+                    folium.PolyLine([start, end], color="orange", weight=3.0).add_to(map)
+                
             # Convert the map to HTML
             map_html = map._repr_html_()
             # Display the map in NiceGUI
@@ -185,6 +226,7 @@ def index():
         ui.label('AFE Analysis').style('color: white; font-size: 1.5rem')
 
     with ui.column().style('width: 100%;').classes('justify-between'):
+
         ui.add_head_html("""
             <style>
             .q-field__label {
@@ -196,7 +238,44 @@ def index():
             }
             </style>
             """)
-        ui.label('Botton Hole Survey Information').style('font-size: 1.8rem').classes('w-100')
+        
+        ui.label('Well Information').style('font-size: 1.8rem').classes('w-100').style('font-weight: bold;')
+        ui.separator()
+
+        surface_bottom_location_coordinates = ui.row().style('width: 100%;').classes('justify-left')
+        with surface_bottom_location_coordinates:
+            surface_x = ui.number(label='Surface X', 
+                                    placeholder='Enter a whole number',
+                                    format='%d',
+                                    step=0,
+                                    precision=0).bind_value(project, 'surface_x').style('font-size: 1.2rem').classes('w-60')
+            surface_y = ui.number(label='Surface Y', 
+                                    placeholder='Enter a whole number',
+                                    format='%d',
+                                    step=0,
+                                    precision=0).bind_value(project, 'surface_y').style('font-size: 1.2rem').classes('w-60')
+            bottom_hole_x = ui.number(label='Bottom Hole X', 
+                                    placeholder='Enter a whole number',
+                                    format='%d',
+                                    step=0,
+                                    precision=0).bind_value(project, 'bottom_hole_x').style('font-size: 1.2rem').classes('w-60')
+            bottom_hole_y = ui.number(label='Bottom Hole Y', 
+                                    placeholder='Enter a whole number',
+                                    format='%d',
+                                    step=0,
+                                    precision=0).bind_value(project, 'bottom_hole_y').style('font-size: 1.2rem').classes('w-60')
+            system_select = ui.select(options=['NAD27', 'NAD83'],
+                                    with_input=True,
+                                    label='System',
+                                    on_change=lambda: handle_section_change()).style('font-size: 1.2rem').bind_value(project, 'system').classes('w-40')
+            zone_select = ui.select(options=['East', 'Central', 'West'],
+                                    with_input=True,
+                                    label='Zone',
+                                    on_change=lambda: handle_section_change()).style('font-size: 1.2rem').bind_value(project, 'zone').classes('w-40')
+            
+        ui.separator()  
+
+        ui.label('Botton Hole Survey Information').style('font-size: 1.8rem').classes('w-100').style('font-weight: bold;')
         ui.separator()
         
         state_county_container = ui.row().style('width: 100%;').classes('justify-left')
@@ -253,7 +332,7 @@ def index():
                 label='Section',
                 on_change=lambda: handle_section_change()).style('font-size: 1.2rem').bind_value(project, 'new_mexico_section').classes('w-40')
 
-        ui.separator()  
+        ui.separator()
 
         map_container = ui.html().style('width: 100%; height: 800px;').classes('justify-between')
         with map_container:
