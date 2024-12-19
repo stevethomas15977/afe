@@ -1,4 +1,4 @@
-from nicegui import ui
+from nicegui import ui, events
 from helpers import ( texas_plss_block_section_overlay,
                      apply_geojson_overlay,
                      spc_feet_to_latlon )
@@ -6,9 +6,14 @@ from services import ( NewMexicoLandSurveySystemService, TexasLandSurveySystemSe
 from context import Context
 import folium
 import os
+import tempfile
 
 class Project:
     def __init__(self):
+        self.name = ''
+        self.provider = 'Enverus'
+        self.offset_well_file = None
+        self.offset_survey_file = None
         self.state = 'Texas'
         self.county = None
         self.abstract = None
@@ -22,12 +27,12 @@ class Project:
         self.system = 'NAD27'
         self.zone = 'Central'
         self.columns = [
-            {'headerName': 'ID', 'field': 'id', 'type': 'number'},
-            {'headerName': 'Name', 'field': 'name', 'editable': True, 'sortable': True},
-            {'headerName': 'Surface X', 'field': 'surface_x', 'editable': True, 'type': 'number'},
-            {'headerName': 'Surface Y', 'field': 'surface_y', 'editable': True, 'type': 'number'},
-            {'headerName': 'Bottom Hole X', 'field': 'bottom_hole_x', 'editable': True, 'type': 'number'},
-            {'headerName': 'Bottom Hole Y', 'field': 'bottom_hole_y', 'editable': True, 'type': 'number'},
+            {'headerName': 'ID', 'field': 'id', 'type': 'number', 'cellStyle':  {'textAlign': 'center'}},
+            {'headerName': 'Name', 'field': 'name', 'editable': True, 'sortable': True, 'cellStyle':  {'textAlign': 'center'}},
+            {'headerName': 'Surface X', 'field': 'surface_x', 'editable': True, 'type': 'number', 'cellStyle':  {'textAlign': 'center'}},
+            {'headerName': 'Surface Y', 'field': 'surface_y', 'editable': True, 'type': 'number', 'cellStyle':  {'textAlign': 'center'}},
+            {'headerName': 'Bottom Hole X', 'field': 'bottom_hole_x', 'editable': True, 'type': 'number', 'cellStyle':  {'textAlign': 'center'}},
+            {'headerName': 'Bottom Hole Y', 'field': 'bottom_hole_y', 'editable': True, 'type': 'number', 'cellStyle':  {'textAlign': 'center'}},
             {'field': 'surface_latitude', 'hide': True},
             {'field': 'surface_longitude', 'hide': True},
             {'field': 'bottom_hole_latitude', 'hide': True},
@@ -44,6 +49,19 @@ def index():
     new_mexico_land_survey_service = NewMexicoLandSurveySystemService(context._new_mexico_land_survey_system_database_path)
 
     project = Project()
+
+    def handle_file_upload(event: events.UploadEventArguments, file_type: str): 
+        try:
+            temp_file = tempfile.NamedTemporaryFile(delete=False)
+            temp_file.write(event.content.read())
+            temp_file.close()
+            if file_type == 'WELL_DATA':
+                project.offset_well_file = temp_file.name
+            elif file_type == 'SURVEY_DATA':
+                project.offset_survey_file = temp_file.name
+            ui.notify(f"Uploaded {event.name} successfully!", type='positive')
+        except Exception as e:
+            ui.notify(f"Failed to upload the file: {e}", type='negative')
 
     def add_row():
         new_id = max((dx['id'] for dx in project.rows), default=-1) + 1
@@ -290,8 +308,29 @@ def index():
             }
             </style>
             ''')  
-              
-        ui.label('Well Information').style('font-size: 1.8rem').classes('w-100').style('font-weight: bold;')
+    
+        ui.add_css('''
+            .ag-header-cell-label {
+                justify-content: center;
+                font-weight: bold;
+            }
+            ''')
+    
+        ui.label('Project Name').style('font-size: 1.8rem').classes('w-100').style('font-weight: bold;')
+        project_name_container = ui.row().style('width: 100%;').classes('justify-left')
+        with project_name_container:
+            ui.input(label='Name', on_change=lambda: handle_section_change()).style('font-size: 1.2rem').bind_value(project, 'name').classes('w-60')
+        ui.separator()
+
+        ui.label('Offset Well Data Files').style('font-size: 1.8rem').classes('w-100').style('font-weight: bold;')
+        offset_well_data_files_container = ui.row().style('width: 100%;').classes('justify-left')
+        with offset_well_data_files_container:
+            ui.select(options=['Enverus'], label='Provider').style('font-size: 1.2rem').bind_value(project, 'provider').classes('w-40')            
+            ui.upload(label='Well Data', on_upload=lambda event: handle_file_upload(event=event, file_type='WELL_DATA')).style('font-size: 1.2rem').classes('w-60')
+            ui.upload(label='Survey Data', on_upload=lambda event: handle_file_upload(event=event, file_type='SURVEY_DATA')).style('font-size: 1.2rem').classes('w-60')        
+        ui.separator()
+
+        ui.label('Target Well Information').style('font-size: 1.8rem').classes('w-100').style('font-weight: bold;')
         ui.separator()
 
         surface_bottom_location_coordinates = ui.row().style('width: 100%;').classes('justify-left')
@@ -317,7 +356,7 @@ def index():
 
         ui.separator()  
 
-        ui.label('Botton Hole Survey Information').style('font-size: 1.8rem').classes('w-100').style('font-weight: bold;')
+        ui.label('Bottom Hole Survey Information').style('font-size: 1.8rem').classes('w-100').style('font-weight: bold;')
         ui.separator()
         
         state_county_container = ui.row().style('width: 100%;').classes('justify-left')
@@ -376,9 +415,10 @@ def index():
 
         ui.separator()
 
-        map_container = ui.html().style('width: 100%; height: 800px;').classes('justify-between')
-        with map_container:
-            ui.space()
+        with ui.expansion('Surface Map', icon='map').classes('w-full').style('width: 100%; font-size: 1.3rem;'):
+            map_container = ui.html().style('width: 100%; height: 800px;').classes('justify-between')
+            with map_container:
+                ui.space()
 
     with ui.footer().style('background-color: #3874c8'):
         ui.label('')
