@@ -5,8 +5,9 @@ from helpers import ( texas_plss_block_section_overlay,
 from services import ( NewMexicoLandSurveySystemService, TexasLandSurveySystemService )
 from context import Context
 import folium
-import os
+import os, io
 import tempfile
+from pandas import isna, read_excel, DataFrame
 
 class Project:
     def __init__(self):
@@ -57,12 +58,85 @@ def index():
             temp_file.close()
             if file_type == 'WELL_DATA':
                 project.offset_well_file = temp_file.name
+                with open(project.offset_well_file, 'rb') as file:
+                    bytes = file.read()
+                columns, rows, row_key = validate_well_data(bytes=bytes)
+                well_data_expansion.clear()
+                with well_data_expansion:
+                    ui.table(columns=columns, rows=rows, row_key=row_key, pagination=10).style('width: 100%; border: 1px solid black;')
             elif file_type == 'SURVEY_DATA':
                 project.offset_survey_file = temp_file.name
             ui.notify(f"Uploaded {event.name} successfully!", type='positive')
         except Exception as e:
             ui.notify(f"Failed to upload the file: {e}", type='negative')
 
+    def validate_well_data(bytes: bytes) -> tuple[list, list, str]:
+        columns = []
+        rows = []
+        row_key = 'API_UWI'
+        try:
+            wells = read_excel(io.BytesIO(bytes), engine='openpyxl')
+
+            for column in wells.columns:
+                col_dict = dict()
+                if column in well_headers():
+                    col_dict['name'] = column
+                    col_dict['label'] = column
+                    col_dict['field'] = column
+                    col_dict['required'] = True
+                    col_dict['align'] = 'center'
+                    columns.append(col_dict)                            
+
+            for row in wells.to_dict(orient='records'):
+                row_dict = dict()
+                for column in well_headers():
+                    if column in well_headers():
+                        if 'FirstProdDate' == column:
+                            if not isna(row.get(column)):
+                                row_dict[column] = str(row.get(column).strftime("%Y-%m-%d"))
+                            else:
+                                row_dict[column] = None
+                        else:
+                            row_dict[column] = row.get(column)
+                rows.append(row_dict)
+
+        except Exception as e:
+            raise Exception(f"Error validating Well Data: {str(e)}")
+        
+        return columns, rows, row_key
+    
+    def well_headers() -> list:
+        return [
+            "API_UWI", 
+            "WellName", 
+            'CompletionNumber',
+            "ENVWellboreStatus", 
+            "WellPadDirection", 
+            "ENVOperator", 
+            "ENVWellStatus", 
+            "LeaseName", 
+            "ENVInterval", 
+            "Formation", 
+            "FirstProdDate", 
+            "Latitude", 
+            "Longitude", 
+            "Latitude_BH",
+            "Longitude_BH",
+            "TVD_FT",
+            "MD_FT",
+            "ElevationKB_FT",
+            "LateralLength_FT",
+            "PerfInterval_FT",
+            "LateralLength_FT",
+            "ProppantIntensity_LBSPerFT",
+            "StateProvince",
+            "County",
+            "Abstract",
+            "Township",
+            "Range",
+            "CumOil_BBL"
+        ]
+    
     def add_row():
         new_id = max((dx['id'] for dx in project.rows), default=-1) + 1
         project.rows.append({'id': new_id, 'name': '', 'age': None})
@@ -328,6 +402,11 @@ def index():
             ui.select(options=['Enverus'], label='Provider').style('font-size: 1.2rem').bind_value(project, 'provider').classes('w-40')            
             ui.upload(label='Well Data', on_upload=lambda event: handle_file_upload(event=event, file_type='WELL_DATA')).style('font-size: 1.2rem').classes('w-60')
             ui.upload(label='Survey Data', on_upload=lambda event: handle_file_upload(event=event, file_type='SURVEY_DATA')).style('font-size: 1.2rem').classes('w-60')        
+        
+            well_data_expansion = ui.expansion('Well Data', icon='oil_barrel').classes('w-full').style('width: 100%; font-size: 1.3rem;')
+            with well_data_expansion:
+                ui.space()
+
         ui.separator()
 
         ui.label('Target Well Information').style('font-size: 1.8rem').classes('w-100').style('font-weight: bold;')
