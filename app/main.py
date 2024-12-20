@@ -389,7 +389,7 @@ def index():
                     location=start,
                     icon=folium.DivIcon(icon_size=(150, 36), 
                         icon_anchor=(0, 0),
-                        html=f'<div style="font-size: 20px; color: black;">{row["id"]}<b></b></div>'
+                        html=f'<div style="font-size: 20px; color: black;"><b></b></div>'
                     ),).add_to(map)
 
             # Convert the map to HTML
