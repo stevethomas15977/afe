@@ -15,7 +15,7 @@ class Project:
         self.provider = 'Enverus'
         self.offset_well_file = None
         self.offset_survey_file = None
-        self.state = 'Texas'
+        self.state = None
         self.county = None
         self.abstract = None
         self.block = None
@@ -45,17 +45,17 @@ class Project:
             {'field': 'bottom_hole_longitude', 'hide': True}
         ]
         self.rows = [
-            {'id': 1, 
-             'name': 'MOOSEHORN 54-1-41-44 G 61H', 
-             'surface_x': 960823, 
-             'surface_y': 832675, 
-             'bottom_hole_x': 960499, 
-             'bottom_hole_y': 821876, 
-             'lz': '2BSS', 
-             'perf_int': 10414, 
-             'ssd': -6924, 
-             'system': 'NAD27', 
-             'zone': 'Central'}
+            # {'id': 1, 
+            #  'name': None, 
+            #  'surface_x': None, 
+            #  'surface_y': None, 
+            #  'bottom_hole_x': None, 
+            #  'bottom_hole_y': None, 
+            #  'lz': None, 
+            #  'perf_int': None, 
+            #  'ssd': None, 
+            #  'system': None, 
+            #  'zone': None}
         ]
         self.offset_wells = []
 
@@ -74,14 +74,6 @@ def index():
             temp_file.close()
             if file_type == 'WELL_DATA':
                 project.offset_well_file = temp_file.name
-                with open(project.offset_well_file, 'rb') as file:
-                    bytes = file.read()
-                columns, rows, row_key = validate_well_data(bytes=bytes)
-                well_data_expansion.clear()
-                with well_data_expansion:
-                    ui.table(columns=columns, rows=rows, row_key=row_key, pagination=10).style('width: 100%; border: 1px solid black;')
-                    project.offset_wells = rows
-                    survey_data_ulpload.visible = True
             elif file_type == 'SURVEY_DATA':
                 project.offset_survey_file = temp_file.name
             
@@ -89,85 +81,8 @@ def index():
         except Exception as e:
             ui.notify(f"Failed to upload the file: {e}", type='negative')
 
-    def validate_well_data(bytes: bytes) -> tuple[list, list, str]:
-        columns = []
-        rows = []
-        row_key = 'API_UWI'
-        try:
-            wells = read_excel(io.BytesIO(bytes), engine='openpyxl')
-
-            wells = wells.sort_values(by=['LeaseName'], ascending=True)
-
-            producing_wells = wells[wells["ENVWellboreStatus"] == "PRODUCING"]
-
-            for column in producing_wells.columns:
-                col_dict = dict()
-                if column in well_headers():
-                    col_dict['name'] = column
-                    col_dict['label'] = column
-                    col_dict['field'] = column
-                    col_dict['required'] = True
-                    col_dict['align'] = 'center'
-                    columns.append(col_dict)                            
-
-            for row in producing_wells.to_dict(orient='records'):
-                row_dict = dict()
-
-                try:
-                    for header in well_headers():
-                        if row.get(header) is None or isna(row.get(header)):
-                            raise Exception(f"Missing value for {header}")
-                except Exception as e:
-                    continue
-                
-                if 'ENVInterval' == column:
-                    if 'DELAWARE VERTICAL' == row.get(column):
-                        continue
-                for column in well_headers():
-                    if column in well_headers():
-                        if ('FirstProdDate' == column or 
-                            'LastProducingMonth' == column):
-                            if not isna(row.get(column)):
-                                row_dict[column] = str(row.get(column).strftime("%Y-%m-%d"))
-                            else:
-                                row_dict[column] = None
-                        else:
-                            row_dict[column] = row.get(column)
-                rows.append(row_dict)
-
-        except Exception as e:
-            raise Exception(f"Error validating Well Data: {str(e)}")
-        
-        return columns, rows, row_key
-    
-    def well_headers() -> list:
-        return [
-            "API_UWI",
-            "WellName",
-            "WellPadDirection",
-            "ENVOperator",
-            "ENVWellStatus",
-            "LeaseName",
-            "ENVInterval",
-            "FirstProdDate",
-            "Latitude",
-            "Longitude",
-            "Latitude_BH",
-            "Longitude_BH",
-            "TVD_FT",
-            "MD_FT",
-            "ElevationKB_FT",
-            "LateralLength_FT",
-            "PerfInterval_FT",
-            "LateralLength_FT",
-            "ProppantIntensity_LBSPerFT",
-            "CumOil_BBL",
-            "LastProducingMonth",
-            "CumOil_BBLPer1000FT"
-        ]
-    
     def add_row():
-        new_id = max((dx['id'] for dx in project.rows), default=-1) + 1
+        new_id = max((dx['id'] for dx in project.rows), default=0) + 1
         project.rows.append({'id': new_id, 'name': '', 'age': None})
         ui.notify(f'Added row with ID {new_id}')
         aggrid.update()
@@ -244,159 +159,6 @@ def index():
         new_mexico_section_select.options = sections
         new_mexico_section_select.update()
 
-    async def handle_section_change():
-        coordinates = {}
-
-        if project.state == 'Texas':
-            if project.system == 'NAD27':
-                inDatum = "NAD27"
-                outDatum = "NAD27"
-            elif project.system == 'NAD83':
-                inDatum = "NAD83(2011)"
-                outDatum = "NAD83(2011)"
-            if project.zone == 'East':
-                spcZone = 4203
-            elif project.zone == 'Central':
-                spcZone = 4203
-            elif project.zone == 'West':
-                spcZone = 4203
-
-            for row in project.rows:
-                if row['surface_x'] is not None and row['surface_y'] is not None:
-                    surface_latitude, surface_longitude = spc_feet_to_latlon(northing=row['surface_y'], 
-                                                                            easting=row['surface_x'],
-                                                                            spcZone=spcZone,
-                                                                            inDatum=inDatum)
-                    row['surface_latitude'] = surface_latitude
-                    row['surface_longitude'] = surface_longitude
-                if row['bottom_hole_x'] is not None and row['bottom_hole_y'] is not None:
-                    bottom_hole_latitude, bottom_hole_longitude = spc_feet_to_latlon(northing=row['bottom_hole_y'], 
-                                                                            easting=row['bottom_hole_x'],
-                                                                            spcZone=spcZone,
-                                                                            inDatum=inDatum)
-                    row['bottom_hole_latitude'] = bottom_hole_latitude
-                    row['bottom_hole_longitude'] = bottom_hole_longitude
-                
-        elif project.state == 'New Mexico':
-            pass
-
-        if project.state == 'Texas':
-            survey = texas_land_survey_service.get_by_county_abstract_block_section(project.county, project.abstract, project.block, project.section)
-        elif project.state == 'New Mexico':
-            survey = new_mexico_land_survey_service.get_by_county_township_range_section(project.county, project.township, project.township_direction, project.range, project.range_direction, project.new_mexico_section)
-
-        if survey is None:
-            return
-        
-        if survey.southwest_latitude is not None and survey.southwest_longitude is not None:
-            center = (survey.southwest_latitude, survey.southwest_longitude)
-        elif survey.southeast_latitude is not None and survey.southeast_longitude is not None:
-            center = (survey.southeast_latitude, survey.southeast_longitude)
-        elif survey.northwest_latitude is not None and survey.northwest_longitude is not None:
-            center = (survey.northwest_latitude, survey.northwest_longitude)            
-        elif survey.northeast_latitude is not None and survey.northeast_longitude is not None:
-            center = (survey.northeast_latitude, survey.northeast_longitude)
-        
-        if survey.southwest_latitude is not None and survey.southwest_longitude is not None:
-            coordinates['southwest_latitude'] = survey.southwest_latitude
-            coordinates['southwest_longitude'] = survey.southwest_longitude
-        if survey.southeast_latitude is not None and survey.southeast_longitude is not None:
-            coordinates['southeast_latitude'] = survey.southeast_latitude
-            coordinates['southeast_longitude'] = survey.southeast_longitude
-        if survey.northwest_latitude is not None and survey.northwest_longitude is not None:
-            coordinates['northwest_latitude'] = survey.northwest_latitude
-            coordinates['northwest_longitude'] = survey.northwest_longitude
-        if survey.northeast_latitude is not None and survey.northeast_longitude is not None:
-            coordinates['northeast_latitude'] = survey.northeast_latitude
-            coordinates['northeast_longitude'] = survey.northeast_longitude
-
-        map_container.clear()
-        map_container.update()
-        with map_container:
-            map = folium.Map(location=[center[0], center[1]],
-                           zoom_start=14,
-                           tiles='OpenStreetMap')
-
-            if project.state == 'Texas':
-                # Draw the Texas PLSS Overlay
-                fips_codes = []
-                fips_codes.append(survey.fips_code)
-                texas_plss_block_section_overlay(context=context, abstract=project.abstract, fip_codes=fips_codes, map=map)
-                # Draw the section lines
-                tooltip = f"{survey.abstract}-{survey.block}-{str(int(survey.section))}"
-            elif project.state == 'New Mexico':
-                # Draw the New Mexico PLSS Overlay
-                new_mexico_township_file_path = os.path.join(context.geojson_path, 'new_mexico', 'PLSSTownship.geojson')
-                apply_geojson_overlay(new_mexico_township_file_path, name='PLSS Townships', label='TWNSHPLAB', map=map)
-                new_mexico_sections_file_path = os.path.join(context.geojson_path, 'new_mexico', 'sections')
-                geojson_file = f"{survey.township}{survey.township_direction}-{survey.range}{survey.range_direction}.geojson"
-                apply_geojson_overlay(geojson_file_path=os.path.join(new_mexico_sections_file_path, geojson_file), name='PLSS Sections', label=context.nm_section_column, map=map)
-                tooltip = f"{project.township}-{project.township_direction}-{project.range}-{project.range_direction}-{project.section}"
-
-            # Draw the section lines
-            if (coordinates.get('southwest_latitude') is not None and 
-                coordinates.get('southwest_longitude') is not None and
-                coordinates.get('southeast_latitude') is not None and
-                coordinates.get('southeast_longitude') is not None):
-                start = (coordinates['southwest_latitude'], coordinates['southwest_longitude'])
-                end = (coordinates['southeast_latitude'], coordinates['southeast_longitude'])
-                folium.PolyLine([start, end], color='black', tooltip=tooltip, weight=3.0).add_to(map)
-            if (coordinates.get('southeast_latitude') is not None and
-                coordinates.get('southeast_longitude') is not None and
-                coordinates.get('northeast_latitude') is not None and
-                coordinates.get('northeast_longitude') is not None):
-                start = (coordinates['southeast_latitude'], coordinates['southeast_longitude'])
-                end = (coordinates['northeast_latitude'], coordinates['northeast_longitude'])
-                folium.PolyLine([start, end], color='black', tooltip=tooltip, weight=3.0).add_to(map)
-            if (coordinates.get('northeast_latitude') is not None and
-                coordinates.get('northeast_longitude') is not None and
-                coordinates.get('northwest_latitude') is not None and
-                coordinates.get('northwest_longitude') is not None):
-                start = (coordinates['northeast_latitude'], coordinates['northeast_longitude'])
-                end = (coordinates['northwest_latitude'], coordinates['northwest_longitude'])
-                folium.PolyLine([start, end], color='black', tooltip=tooltip, weight=3.0).add_to(map)
-            if (coordinates.get('northwest_latitude') is not None and
-                coordinates.get('northwest_longitude') is not None and
-                coordinates.get('southwest_latitude') is not None and
-                coordinates.get('southwest_longitude') is not None):
-                    start = (coordinates['northwest_latitude'], coordinates['northwest_longitude'])
-                    end = (coordinates['southwest_latitude'], coordinates['southwest_longitude'])
-                    folium.PolyLine([start, end], color='black', tooltip=tooltip, weight=3.0).add_to(map)
-
-            # Draw target wells
-            for row in project.rows:
-                if (row['surface_latitude'] is not None and 
-                    row['surface_longitude'] is not None and
-                    row['bottom_hole_latitude'] is not None and
-                    row['bottom_hole_longitude'] is not None):
-                        start = (float(row['surface_latitude']), float(row['surface_longitude']))
-                        end = (float(row['bottom_hole_latitude']), float(row['bottom_hole_longitude']))
-                        folium.PolyLine([start, end], color="orange", weight=3.0).add_to(map)
-                
-                        folium.Marker(
-                            location=start,
-                            icon=folium.DivIcon(icon_size=(150, 36), 
-                                icon_anchor=(0, 0),
-                                html=f'<div style="font-size: 20px; color: black;"><b></b></div>'
-                            ),).add_to(map)
-                        
-            # Draw offset wells
-            for row in project.offset_wells:
-                start = (float(row['Latitude']), float(row['Longitude']))
-                end = (float(row['Latitude_BH']), float(row['Longitude_BH']))
-                folium.PolyLine([start, end], color="green", weight=3.0).add_to(map)
-                folium.Marker(
-                    location=start,
-                    icon=folium.DivIcon(icon_size=(150, 36), 
-                        icon_anchor=(0, 0),
-                        html=f'<div style="font-size: 20px; color: black;"><b></b></div>'
-                    ),).add_to(map)
-
-            # Convert the map to HTML
-            map_html = map._repr_html_()
-            # Display the map in NiceGUI
-            map_container.set_content(map_html)
-
     with ui.header(elevated=True).style('background-color: #3874c8').classes('items-center justify-between'):
         ui.label('AFE Analysis').style('color: white; font-size: 1.5rem')
 
@@ -431,10 +193,17 @@ def index():
             }
             ''')
     
+        top_save_container = ui.row().style('width: 100%;').classes('justify-left')
+        with top_save_container:
+            ui.button('Save', on_click=lambda: ui.notify('Saved!'))
+        
+        ui.separator()
+
         ui.label('Project Name').style('font-size: 1.8rem').classes('w-100').style('font-weight: bold;')
         project_name_container = ui.row().style('width: 100%;').classes('justify-left')
         with project_name_container:
-            ui.input(label='Name', on_change=lambda: handle_section_change()).style('font-size: 1.2rem').bind_value(project, 'name').classes('w-60')
+            ui.input(label='Name').style('font-size: 1.2rem').bind_value(project, 'name').classes('w-60')
+        
         ui.separator()
 
         ui.label('Offset Well Data Files').style('font-size: 1.8rem').classes('w-100').style('font-weight: bold;')
@@ -443,27 +212,21 @@ def index():
             ui.select(options=['Enverus'], label='Provider').style('font-size: 1.2rem').bind_value(project, 'provider').classes('w-40')            
             well_data_upload = ui.upload(label='Well Data', on_upload=lambda event: handle_file_upload(event=event, file_type='WELL_DATA')).style('font-size: 1.2rem').classes('w-60')
             survey_data_ulpload = ui.upload(label='Survey Data', on_upload=lambda event: handle_file_upload(event=event, file_type='SURVEY_DATA')).style('font-size: 1.2rem').classes('w-60')      
-            survey_data_ulpload.visible = False
-
-            well_data_expansion = ui.expansion('Well Data', icon='oil_barrel').classes('w-full').style('width: 100%; font-size: 1.3rem;')
-            with well_data_expansion:
-                ui.space()
 
         ui.separator()
 
         ui.label('Target Well Information').style('font-size: 1.8rem').classes('w-100').style('font-weight: bold;')
+        
         ui.separator()
 
         surface_bottom_location_coordinates = ui.row().style('width: 100%;').classes('justify-left')
         with surface_bottom_location_coordinates:
             system_select = ui.select(options=['NAD27', 'NAD83'],
                                     with_input=True,
-                                    label='System',
-                                    on_change=lambda: handle_section_change()).style('font-size: 1.2rem').bind_value(project, 'system').classes('w-40')
+                                    label='System').style('font-size: 1.2rem').bind_value(project, 'system').classes('w-40')
             zone_select = ui.select(options=['East', 'Central', 'West'],
                                     with_input=True,
-                                    label='Zone',
-                                    on_change=lambda: handle_section_change()).style('font-size: 1.2rem').bind_value(project, 'zone').classes('w-40')
+                                    label='Zone').style('font-size: 1.2rem').bind_value(project, 'zone').classes('w-40')
             
             aggrid = ui.aggrid({
                 'columnDefs': project.columns,
@@ -478,6 +241,7 @@ def index():
         ui.separator()  
 
         ui.label('Bottom Hole Survey Information').style('font-size: 1.8rem').classes('w-100').style('font-weight: bold;')
+        
         ui.separator()
         
         state_county_container = ui.row().style('width: 100%;').classes('justify-left')
@@ -507,8 +271,7 @@ def index():
 
             section_select = ui.select(options=[],
                 with_input=True,
-                label='Section',
-                on_change=lambda: handle_section_change()).style('font-size: 1.2rem').bind_value(project, 'section').classes('w-40')
+                label='Section').style('font-size: 1.2rem').bind_value(project, 'section').classes('w-40')
 
         new_mexico_container = ui.row().style('width: 100%;').classes('justify-left')
         new_mexico_container.visible = False
@@ -531,15 +294,13 @@ def index():
                 on_change=lambda: handle_range_direction_change()).bind_value(project, 'range_direction').style('font-size: 1.2rem').classes('w-80')
             new_mexico_section_select = ui.select(options=[],
                 with_input=True,
-                label='Section',
-                on_change=lambda: handle_section_change()).style('font-size: 1.2rem').bind_value(project, 'new_mexico_section').classes('w-40')
-
+                label='Section').style('font-size: 1.2rem').bind_value(project, 'new_mexico_section').classes('w-40')
+        
         ui.separator()
 
-        with ui.expansion('Surface Map', icon='map').classes('w-full').style('width: 100%; font-size: 1.3rem;'):
-            map_container = ui.html().style('width: 100%; height: 800px;').classes('justify-between')
-            with map_container:
-                ui.space()
+        bottom_save_container = ui.row().style('width: 100%;').classes('justify-left')
+        with bottom_save_container:
+            ui.button('Save', on_click=lambda: ui.notify('Saved!'))
 
     with ui.footer().style('background-color: #3874c8'):
         ui.label('')
