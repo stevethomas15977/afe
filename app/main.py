@@ -23,12 +23,12 @@ class Project:
         self.county = None
         self.abstract = None
         self.block = None
-        self.section = None
+        self.tx_section = None
         self.township = None
         self.township_direction = None
         self.range = None
         self.range_direction = None
-        self.new_mexico_section = None
+        self.nm_section = None
         self.system = 'NAD27'
         self.zone = 'Central'
         self.rows = []
@@ -43,12 +43,12 @@ class Project:
             "county": self.county,
             "abstract": self.abstract,
             "block": self.block,
-            "section": self.section,
+            "tx_section": self.tx_section,
             "township": self.township,
             "township_direction": self.township_direction,
             "range": self.range,
             "range_direction": self.range_direction,
-            "new_mexico_section": self.new_mexico_section,
+            "nm_section": self.nm_section,
             "system": self.system,
             "zone": self.zone,
             "rows": self.rows
@@ -189,9 +189,9 @@ async def index():
 
         def handle_block_change():
             sections = texas_land_survey_service.get_distinct_section_by_county_abstract_block(project.county, project.abstract, project.block)
-            section_select.clear()
-            section_select.options = sections
-            section_select.update()
+            tx_section_select.clear()
+            tx_section_select.options = sections
+            tx_section_select.update()
 
         def handle_township_change():
             township_directions = new_mexico_land_survey_service.get_distinct_township_directions_by_county_township(project.county, project.township)
@@ -369,9 +369,9 @@ async def index():
                         label='Block', 
                         on_change=lambda: handle_block_change()).style('font-size: 1.2rem').bind_value(project, 'block').classes('w-40')
 
-                    section_select = ui.select(options=[],
+                    tx_section_select = ui.select(options=[],
                         with_input=True,
-                        label='Section').style('font-size: 1.2rem').bind_value(project, 'section').classes('w-40')
+                        label='Section').style('font-size: 1.2rem').bind_value(project, 'tx_section').classes('w-40')
 
                 new_mexico_container = ui.row().style('width: 100%;').classes('justify-left')
                 new_mexico_container.visible = False
@@ -394,7 +394,7 @@ async def index():
                         on_change=lambda: handle_range_direction_change()).bind_value(project, 'range_direction').style('font-size: 1.2rem').classes('w-80')
                     new_mexico_section_select = ui.select(options=[],
                         with_input=True,
-                        label='Section').style('font-size: 1.2rem').bind_value(project, 'new_mexico_section').classes('w-40')
+                        label='Section').style('font-size: 1.2rem').bind_value(project, 'nm_section').classes('w-40')
                 
                 ui.separator()
 

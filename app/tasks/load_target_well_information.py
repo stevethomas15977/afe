@@ -207,10 +207,11 @@ class LoadTargetWellInformation(Task):
                 if 'Texas' in well['state']:
                     well['tx_abstract_southwest_corner'] = data['abstract']
                     well['tx_block_southwest_corner'] = data['block']
+                    well['nm_tx_section_southwest_corner'] = data['tx_section']
                 if 'New Mexico' in well['state']:
                     well['nw_township_southwest_corner'] = f"{data['township']}{data['township_direction']}"
                     well['nm_range_southwest_corner'] = f"{data['range']}{data['range_direction']}"
-                well['nm_tx_section_southwest_corner'] = data['new_mexico_section']
+                    well['nm_tx_section_southwest_corner'] = data['nm_section']
                 wells.append(well)
                 
             # Create empty DataFrame
