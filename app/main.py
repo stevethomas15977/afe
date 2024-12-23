@@ -73,8 +73,8 @@ async def index():
     with ui.header().classes('items-center justify-between'):
         with ui.button(icon='menu').style('height: 100%;'):
             with ui.menu():
-                ui.menu_item('Create', lambda: create())
-                ui.menu_item('Projects', lambda: projects())
+                ui.menu_item('Create Project', lambda: create())
+                ui.menu_item('View Projects', lambda: projects())
 
         header_label = ui.label(text=f'AFE Analysis').style('flex: 1; font-size: 150%; font-weight: 500')
 
@@ -109,8 +109,9 @@ async def index():
         
     content_area = ui.column().style('width: 100%; padding: 20px;').classes('items-center justify-between') 
     with content_area:
-        ui.label(text=f'Home Page')
-
+        ui.button('Create Project', on_click=lambda: create()).classes('w-40')
+        ui.button('View Projects', on_click=lambda: projects()).classes('w-40')
+        
     footer = ui.footer().classes('items-center justify-between')
 
     context = Context()
@@ -495,4 +496,4 @@ def projects(project: str):
     time(project)
     ui.timer(15.0, lambda: time.refresh(project))
 
-ui.run(port=8080, reload=False)
+ui.run(host='0.0.0.0', port=8080, title='AFE Analysis')

@@ -43,6 +43,7 @@ resource "aws_lightsail_instance" "instance" {
         aws configure set region "us-east-1" --profile lightsail
 
         # Set up the environment variables
+        export BRANCH_NAME="${var.branch}"
         export GH_PAT="${var.ghpat}"
         export APP_SECRET="${var.appsecret}"
         export ENV="${var.env}"
@@ -66,7 +67,7 @@ resource "aws_lightsail_instance" "instance" {
         mkdir -p /tmp/afe
         cd /tmp/afe
         git clone https://$GH_PAT@github.com/stevethomas15977/afe.git .
-        git checkout main
+        git checkout $BRANCH_NAME
 
         cp -R /tmp/afe/app/* $APP_PATH
   
@@ -115,26 +116,26 @@ resource "aws_lightsail_instance" "instance" {
         pip install pipenv
         pipenv sync
 
-        # Create the Gunicorn service file and start the service
-        sudo sh -c "cat > /etc/systemd/system/gunicorn.service" <<EOT
+        # Create the AFE service file and start the service
+        sudo sh -c "cat > /etc/systemd/system/afe.service" <<EOT
         [Unit]
-        Description=gunicorn daemon
+        Description=afe daemon
         After=network.target
 
         [Service]
         User=ubuntu
         Group=ubuntu
-        WorkingDirectory=$APP_PATH
-        ExecStart=$APP_PATH/venv/bin/gunicorn --workers 3 --bind 0.0.0.0:8000 wsgi:app
+        WorkingDirectory=/home/ubuntu/app
+        ExecStart=ExecStart=/bin/sh /home/ubuntu/app/start.sh
 
         [Install]
         WantedBy=multi-user.target
         EOT
 
         sudo systemctl daemon-reload
-        sudo systemctl start gunicorn
-        sudo systemctl enable gunicorn
-        sudo systemctl status gunicorn --no-pager
+        sudo systemctl start afe
+        sudo systemctl enable afe
+        sudo systemctl status afe --no-pager
 
         # Remove nginx default site if it exists
         if [ -e /etc/nginx/sites-enabled/default ]; then
@@ -157,9 +158,9 @@ resource "aws_lightsail_instance" "instance" {
             location / {
                 auth_basic "Restricted Access";
                 auth_basic_user_file /etc/nginx/.htpasswd;
-                proxy_pass http://127.0.0.1:8000;
+                proxy_pass http://127.0.0.1:;
                 proxy_set_header Host \$host;
-                proxy_set_header X-Real-IP \$remote_addr;
+                proxy_set_header X-Real-IP \$remote_8080addr;
                 proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
                 proxy_set_header X-Forwarded-Proto \$scheme;
             }

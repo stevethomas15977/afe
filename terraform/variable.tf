@@ -29,3 +29,9 @@ variable "s3_bucket" {
     description = "S3 bucket name"
     type        = string
 }   
+
+variable "branch" {
+    description = "Branch name"
+    type        = string
+    default     = "main"
+}

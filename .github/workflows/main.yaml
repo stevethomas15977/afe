@@ -23,6 +23,7 @@ on:
 
 env:
   AWS_DEFAULT_REGION: ${{ vars.AWS_DEFAULT_REGION }}
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }} 
 
 jobs:
   deploy:
@@ -32,6 +33,7 @@ jobs:
       - name: Set environment variables based on input
         id: set_env_vars
         run: |
+          echo "TF_VAR_branch=${{ env.BRANCH_NAME }}" >> $GITHUB_ENV
           echo "TF_VAR_ghpat=${{ secrets.AFE_GH_PAT }}" >> $GITHUB_ENV
           echo "TF_VAR_appsecret=${{ secrets.APP_SECRET }}" >> $GITHUB_ENV
           if [ "${{ github.event.inputs.environment }}" == "prod" ]; then
