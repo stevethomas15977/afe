@@ -36,7 +36,7 @@ class TASKS(Enum):
     # Well Spacing Gun Barrel Plot Workflow Group Tasks
     GUN_BARREL_PLOT_WORKFLOW_DATABASE_MANAGEMENT = 'gun_barrel_plot_workflow_database_management'
     CALCULATE_WELL_OVERLAP_PERCENTAGE = 'calculate_well_overlap_percentage'
-    DETERMINE_WELL_SPACING_GUN_BARREL_PLOT_WELLS = 'detemine_well_spacing_gun_barrel_plot_wells'
+    DETERMINE_WELL_SPACING_GUN_BARREL_PLOT_WELLS = 'determine_well_spacing_gun_barrel_plot_wells'
     ENRICH_GUN_BARREL = 'enrich_gun_barrel'
     CREATE_GUN_BARREL_SURFACE_MAP = 'create_gun_barrel_surface_map'
     CREATE_GUN_BARREL_EXCEL = 'create_gun_barrel_excel'

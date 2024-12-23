@@ -120,20 +120,20 @@ class CreateGunBarrelPlot(Task):
                 ax.axvline(width, color='lightgrey', linewidth=0.5, linestyle='--', alpha=0.90, zorder=0)  
 
             # Set axis labels
-            if target_well.state == "TX":
+            if target_well.state == "TX" or target_well.state == "Texas":
                 x_axis_label = f"Bottom hole spacing from west line {target_well.state}/{target_well.county}/{target_well.tx_abstract_southwest_corner}/{target_well.tx_block_southwest_corner}/{int(float(target_well.nm_tx_section_southwest_corner))}) (100 ft intervals)"
                 plss = texas_land_survey_system_service.get_by_county_abstract_block_section(target_well.county, target_well.tx_abstract_southwest_corner, target_well.tx_block_southwest_corner, str(int(float(target_well.nm_tx_section_southwest_corner))))            
                 if plss:
                     fnl_grid_x, fnl_grid_y = latlon_to_utm_feet(plss.northeast_latitude, plss.northeast_longitude)
         
-            elif target_well.state == "NM":
+            elif target_well.state == "NM" or target_well.state == "New Mexico":
                 x_axis_label = f"Bottom hole spacing from west line {target_well.state}/{target_well.county}/{target_well.nw_township_southwest_corner}/{target_well.nm_range_southwest_corner}/{int(float(target_well.nm_tx_section_southwest_corner))}) (100 ft intervals)"
                 township = int(target_well.nw_township_southwest_corner[:-1])
                 township_direction = target_well.nw_township_southwest_corner[-1]
                 nm_range = int(target_well.nm_range_southwest_corner[:-1])
                 range_direction = target_well.nm_range_southwest_corner[-1]
                 section = int(target_well.nm_tx_section_southwest_corner)
-                plss = new_mexico_land_survey_system_service.get_by_township_range_section(township=township, township_direction=township_direction, range=nm_range, range_direction=range_direction, section=section)            
+                plss = new_mexico_land_survey_system_service.get(county=target_well.county, township=township, township_direction=township_direction, range=nm_range, range_direction=range_direction, section=section)            
                 if plss:
                     fnl_grid_x, fnl_grid_y = latlon_to_utm_feet(plss.northeast_latitude, plss.northeast_longitude)
 
@@ -144,9 +144,9 @@ class CreateGunBarrelPlot(Task):
             specific_x = 0
             ax.axvline(specific_x, color='blue', linewidth=0.5, linestyle='--', alpha=0.75)
             label_y_position = y_min
-            if target_well.state == "TX":
+            if target_well.state == "TX" or target_well.state == "Texas":
                 ax.text(specific_x, label_y_position, f"{target_well.tx_abstract_southwest_corner}/{target_well.tx_block_southwest_corner}/{int(float(target_well.nm_tx_section_southwest_corner))}", color='black', fontsize=fontsize, ha='center', va='bottom')
-            elif target_well.state == "NM":
+            elif target_well.state == "NM" or target_well.state == "New Mexico":
                 ax.text(specific_x, label_y_position, f"{target_well.nw_township_southwest_corner}/{target_well.nm_range_southwest_corner}/{int(float(target_well.nm_tx_section_southwest_corner))}", color='black', fontsize=fontsize, ha='center', va='bottom')
             
             legend_elements = []  
@@ -307,7 +307,7 @@ class CreateGunBarrelPlot(Task):
                 bbox_to_anchor=(0.5, -0.14),
                 handler_map=handlers,
                 borderaxespad=0.1,
-                ncol=(len(wells)%6-1))
+                ncol=(len(wells)))
 
             custom_legend.get_frame().set_facecolor(BACKGROUND_COLOR)
             ax.add_artist(custom_legend)

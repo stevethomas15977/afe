@@ -29,7 +29,7 @@ class CreateSimulatedWell(Task):
             target_well = target_well_information_service.get_first_row()
             target_well_analysis = analysis_service.get_by_name(target_well.name)
 
-            if target_well.state == "TX":
+            if target_well.state == "TX" or target_well.state == "Texas":
                 tlss = tlss_service.get_by_county_abstract(county=target_well.county, abstract=target_well.tx_abstract_southwest_corner)
                 if tlss is None:
                     logger.error(f"PLSS not found for {target_well.county}, {target_well.tx_block_southwest_corner}, {target_well.nm_tx_section_southwest_corner}")
@@ -38,13 +38,13 @@ class CreateSimulatedWell(Task):
                     southwest_latitude = tlss.southwest_latitude
                     southwest_longitude = tlss.southwest_longitude
                 simulated_well_name = f"Simulated-Well-{target_well.state}-{target_well.county}-{target_well.tx_abstract_southwest_corner}-{target_well.tx_block_southwest_corner}-{target_well.nm_tx_section_southwest_corner}"
-            elif target_well.state == "NM":
+            elif target_well.state == "NM" or target_well.state == "New Mexico":
                 township = int(target_well.nw_township_southwest_corner[:-1])
                 township_direction = target_well.nw_township_southwest_corner[-1]
                 range = int(target_well.nm_range_southwest_corner[:-1])
                 range_direction = target_well.nm_range_southwest_corner[-1]
                 section = int(target_well.nm_tx_section_southwest_corner)
-                nmlss = nmlss_service.get_by_township_range_section(township=township, township_direction=township_direction, range=range, range_direction=range_direction, section=section)
+                nmlss = nmlss_service.get(county=target_well.county, township=township, township_direction=township_direction, range=range, range_direction=range_direction, section=section)
                 if nmlss is None:
                     logger.error(f"PLSS not found for {target_well.nw_township_southwest_corner}, {target_well.nm_range_southwest_corner}, {target_well.nm_tx_section_southwest_corner}")
                     raise ValueError(f"PLSS not found for {target_well.nw_township_southwest_corner}, {target_well.nm_range_southwest_corner}, {target_well.nm_tx_section_southwest_corner}")

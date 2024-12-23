@@ -97,9 +97,9 @@ class CreateCrossPlot(Task):
                 ax.axvline(width, color='lightgrey', linewidth=0.5, linestyle='--', alpha=0.90, zorder=0)  
 
             # Set axis labels
-            if target_well.state == "TX":
+            if target_well.state == "TX" or target_well.state == "Texas":
                 x_axis_label = f"Bottom hole spacing from west line {target_well.state}/{target_well.county}/{target_well.tx_abstract_southwest_corner}/{target_well.tx_block_southwest_corner}/{int(float(target_well.nm_tx_section_southwest_corner))}) (500 ft/int.)"
-            elif target_well.state == "NM":
+            elif target_well.state == "NM" or target_well.state == "New Mexico":
                 x_axis_label = f"Bottom hole spacing from west line {target_well.state}/{target_well.county}/{target_well.nw_township_southwest_corner}/{target_well.nm_range_southwest_corner}/{int(float(target_well.nm_tx_section_southwest_corner))}) (500 ft/int.)"
             ax.set_xlabel(x_axis_label)
             ax.set_ylabel(f"Depth below mean sea level (1000 ft/int.)")
@@ -108,9 +108,9 @@ class CreateCrossPlot(Task):
             specific_x = 0
             ax.axvline(specific_x, color='blue', linewidth=0.5, linestyle='--', alpha=0.75)
             label_y_position = y_min
-            if target_well.state == "TX":
+            if target_well.state == "TX" or target_well.state == "Texas":
                 ax.text(specific_x, label_y_position, f"{target_well.tx_abstract_southwest_corner}/{target_well.tx_block_southwest_corner}/{int(float(target_well.nm_tx_section_southwest_corner))}", color='black', fontsize=fontsize, ha='center', va='bottom')
-            elif target_well.state == "NM":
+            elif target_well.state == "NM" or target_well.state == "New Mexico":
                 ax.text(specific_x, label_y_position, f"{target_well.nw_township_southwest_corner}/{target_well.nm_range_southwest_corner}/{int(float(target_well.nm_tx_section_southwest_corner))}", color='black', fontsize=fontsize, ha='center', va='bottom')
             
             xyz_distances = xyz_distance_service.get_by_simulated_well()

@@ -43,11 +43,11 @@ class CreateTargetWellAnalysis(Task):
                                                                                                      float(target_well.latitude_bottom_hole), 
                                                                                                      float(target_well.longitude_bottom_hole)))
                 analysis.lateral_length = target_well.surveys_preforated_interval_ft
-                analysis.lateral_start_latitude = float(target_well.latitude_first_take_point)
-                analysis.lateral_start_longitude = float(target_well.longitude_first_take_point)
+                analysis.lateral_start_latitude = float(target_well.latitude_surface_location)
+                analysis.lateral_start_longitude = float(target_well.longitude_surface_location)
                 analysis.lateral_midpoint_latitude, analysis.lateral_midpoint_longitude = adjust_coordinate(analysis.lateral_start_latitude , analysis.lateral_start_longitude , int(analysis.lateral_length/2), analysis.dominant_direction)
-                analysis.lateral_end_latitude = float(target_well.latitude_last_take_point)
-                analysis.lateral_end_longitude = float(target_well.longitude_first_take_point)
+                analysis.lateral_end_latitude = float(target_well.latitude_bottom_hole)
+                analysis.lateral_end_longitude = float(target_well.longitude_bottom_hole)
                 analysis.subsurface_depth = target_well.bhl_tvd_ss_ft
                 analysis.lateral_start_grid_x, analysis.lateral_start_grid_y = latlon_to_utm_feet(analysis.lateral_start_latitude, analysis.lateral_start_longitude)
                 analysis.lateral_start_subsurface_depth = target_well.bhl_tvd_ss_ft

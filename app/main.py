@@ -1,7 +1,8 @@
-from nicegui import ui, app, events
+from nicegui import ui, app, events, run
 from helpers import ( texas_plss_block_section_overlay,
                      apply_geojson_overlay,
-                     spc_feet_to_latlon )
+                     spc_feet_to_latlon,
+                     write_to_file)
 from services import ( NewMexicoLandSurveySystemService, TexasLandSurveySystemService )
 from context import Context
 import folium
@@ -9,6 +10,8 @@ import os, io, shutil, json, time
 import tempfile
 from pandas import isna, read_excel, DataFrame
 from pathlib import Path
+import threading
+from workflow_manager import WorkflowManager
 
 class Project:
     def __init__(self):
@@ -28,17 +31,7 @@ class Project:
         self.new_mexico_section = None
         self.system = 'NAD27'
         self.zone = 'Central'
-        self.rows = [
-            {'id': 1, 
-             'name': '', 
-             'surface_x': 0, 
-             'surface_y': 0, 
-             'bottom_hole_x': 0, 
-             'bottom_hole_y': 0, 
-             'lz': '', 
-             'perf_int': 0, 
-             'ssd': 0}            
-        ]
+        self.rows = []
 
     def to_dict(self):
         return {
@@ -77,7 +70,6 @@ target_well_columns = [
 
 @ui.page('/')
 async def index():
-    context = Context()
     with ui.header().classes('items-center justify-between'):
         with ui.button(icon='menu').style('height: 100%;'):
             with ui.menu():
@@ -121,11 +113,12 @@ async def index():
 
     footer = ui.footer().classes('items-center justify-between')
 
+    context = Context()
+    project = Project()
+    
     def create():
         texas_land_survey_service = TexasLandSurveySystemService(context._texas_land_survey_system_database_path)
         new_mexico_land_survey_service = NewMexicoLandSurveySystemService(context._new_mexico_land_survey_system_database_path)
-
-        project = Project()
 
         def handle_file_upload(event: events.UploadEventArguments, file_type: str): 
             try:
@@ -226,8 +219,8 @@ async def index():
 
         def handle_save():
             try:
-                if project.name.isspace() or project.name.isalnum() == False:
-                    ui.notify('No spaces or special characters allowed in project name', type='negative')
+                if project.name is None: 
+                    ui.notify('Project name is empty', type='negative')
                     return
                 
                 if project.offset_well_file is None or project.offset_survey_file is None:
@@ -235,6 +228,7 @@ async def index():
                     return
                 
                 try:
+                    context.project = project.name
                     context.project_path = os.path.join(context.projects_path, project.name)
                     os.makedirs(context.project_path, exist_ok=True)
                     
@@ -255,9 +249,15 @@ async def index():
                     ui.notify(f'Failed to create project directories: {e}', type='negative')
                     return
             
+                for row in project.rows:
+                    if not isna(row['surface_x']) and not isna(row['surface_y']) and not isna(row['bottom_hole_x']) and not isna(row['bottom_hole_y']):
+                        context.target_well_information_file = os.path.join(context.logs_path, f'project.json')
+                    
                 try:
-                    shutil.move(project.offset_well_file, os.path.join(context.well_data_path, 'well-data.xlsx'))
-                    shutil.move(project.offset_survey_file, os.path.join(context.survey_data_path, 'survey-data.xlsx'))
+                    shutil.move(project.offset_well_file, os.path.join(context.well_data_path, f'{project.name}-well-data.xlsx'))
+                    shutil.move(project.offset_survey_file, os.path.join(context.survey_data_path, f'{project.name}-survey-data.xlsx'))
+                    context.well_file = os.path.join(context.well_data_path, f'{project.name}-well-data.xlsx')
+                    context.survey_file = os.path.join(context.survey_data_path, f'{project.name}-survey-data.xlsx')   
                     with open(os.path.join(context.logs_path, 'project.json'), "w") as f:
                         json.dump(project.to_dict(), f, indent=4)
                 except Exception as e:  
@@ -266,11 +266,34 @@ async def index():
                 
                 ui.notify(f"Project {project.name} saved successfully!", type='positive')
                 project_files_container.visible = True
+                project_files_container.clear()
+                launch_workflow_button.visible = True
                 with project_files_container:
                     ui.html(f'<iframe src="/projects/{project.name}" title="static" height="640px" width="1280px"></iframe>').style('width: 100%; height: 100%; border: none;')
 
             except Exception as e:
                 ui.notify(f'Failed to save project: {e}', type='negative')
+
+        def launch_workflow(context: Context):
+            try:
+                workflow_manager = WorkflowManager(context=context)
+                workflow_thread = threading.Thread(name=context.project, target=execute_workflow, args=(workflow_manager, ))
+                workflow_thread.start()
+                spinner.visible = True
+            except Exception as e:
+                ui.notify(f'Failed to launch workflow: {e}', type='negative')
+
+        def execute_workflow(workflow_manager: WorkflowManager):
+            try:
+                workflow_manager.project_initiation_workflow()
+                workflow_manager.base_workflow()
+                workflow_manager.offset_well_identification_workflow()
+                if workflow_manager.context.target_well_information_file:
+                    workflow_manager.gun_barrel_workflow()
+                write_to_file(os.path.join(workflow_manager.context.project_path, f"COMPLETED"),f"Completed")
+                spinner.visible = False
+            except Exception as e:
+                raise e
 
         content_area.clear()
         with content_area:
@@ -378,6 +401,10 @@ async def index():
                 bottom_save_container = ui.row().style('width: 100%;').classes('justify-left').bind_visibility_from(project, 'name')
                 with bottom_save_container:
                     ui.button('Save', on_click=lambda: handle_save())
+                    launch_workflow_button = ui.button('Launch Workflow', on_click=lambda: launch_workflow(context=context))
+                    launch_workflow_button.visible = False
+                    spinner = ui.spinner('hourglass', size='lg')
+                    spinner.visible = False
 
                 project_files_container = ui.expansion('Project Files', icon='description').classes('w-full').style('width: 100%; font-size: 1.3rem;')
                 project_files_container.visible = False
@@ -394,7 +421,7 @@ async def index():
             context.db_path = os.path.join(context.logs_path, f"{context.project}-{context.version}.db")
             
             try:
-                with open(os.path.join(context.projects_path, project_name, 'project.json'), 'r') as f:
+                with open(os.path.join(context.logs_path, 'project.json'), 'r') as f:
                     project = json.load(f)
                 project_container.clear()
                 with project_container:
@@ -456,9 +483,8 @@ async def index():
 
 @ui.refreshable
 def time(project: str):
-    directory = f'/home/ubuntu/afe/projects/{project}'
+    directory = os.path.join(os.environ['PROJECTS_PATH'], project)
     app.add_static_files(f'/{project}', directory)
-
     files = os.listdir(directory)
     for file in files:
         if os.path.isfile(os.path.join(directory, file)):
@@ -467,6 +493,6 @@ def time(project: str):
 @ui.page('/projects/{project}')
 def projects(project: str):
     time(project)
-    ui.timer(30.0, lambda: time.refresh(project))
+    ui.timer(15.0, lambda: time.refresh(project))
 
-ui.run(port=8080)
+ui.run(port=8080, reload=False)

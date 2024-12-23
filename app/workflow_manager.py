@@ -6,27 +6,22 @@ from helpers import write_to_file
 import os
 
 class WorkflowManager:
-    def __init__(self, context: Context=None):
+    def __init__(self, context: Context):
         self._context = context
         self._factory = TaskFactory(self._context)
-        if os.path.exists(os.path.join(self.context.project_path, f"ERROR")):
-            os.remove(os.path.join(self.context.project_path, f"ERROR"))
-        write_to_file(os.path.join(self.context.project_path, f"RUNNING"),f"Running")
-
-    def __del__(self):
-        running_file = os.path.join(self.context.project_path, f"RUNNING")
-        if os.path.exists(running_file):
-            os.remove(running_file)
-        write_to_file(os.path.join(self.context.project_path, f"COMPLETED"),f"Completed")
+        for state in ['RUNNING', 'COMPLETED', 'ERROR']:
+            if os.path.exists(os.path.join(context.project_path, state)):
+                os.remove(os.path.join(context.project_path, state))
 
     def project_initiation_workflow(self):
         workgroup = WorkflowGroup("AFE Project Initiation Workflow", self._context, self._factory)
         workgroup.add_task(TASKS.CREATE_DATABASE.value)
         workgroup.add_task(TASKS.LOAD_LOOKUP_TABLES.value)
-        if self._context.target_well_information_file:
-            workgroup.add_task(TASKS.VALIDATE_TARGET_WELL_INFORMATION.value)
-            
+        # if self._context.target_well_information_file:
+            # workgroup.add_task(TASKS.VALIDATE_TARGET_WELL_INFORMATION.value)
         workgroup.run()
+        if os.path.exists(os.path.join(self.context.project_path, f"RUNNING")):
+            os.remove(os.path.join(self.context.project_path, f"RUNNING"))
 
     def base_workflow(self):
         workgroup = WorkflowGroup("AFE Base Workflow", self._context, self._factory)
@@ -41,6 +36,8 @@ class WorkflowManager:
         workgroup.add_task(TASKS.CALCULATE_XYZ_DISTANCE.value)
         workgroup.add_task(TASKS.CALCULATE_LATITUDE_LONGITUDE_DISTANCE.value)
         workgroup.run()
+        if os.path.exists(os.path.join(self.context.project_path, f"RUNNING")):
+            os.remove(os.path.join(self.context.project_path, f"RUNNING"))
 
     def offset_well_identification_workflow(self):
         workgroup = WorkflowGroup("Offset Well Identification Workflow", self._context, self._factory)
@@ -55,6 +52,8 @@ class WorkflowManager:
         workgroup.add_task(TASKS.DETERMINE_BOUNDED_WELLS.value)
         workgroup.add_task(TASKS.CREATE_OFFSET_WELL_IDENTIFICATION_EXCEL.value)
         workgroup.run()
+        if os.path.exists(os.path.join(self.context.project_path, f"RUNNING")):
+            os.remove(os.path.join(self.context.project_path, f"RUNNING"))
 
     def gun_barrel_workflow(self):
         workgroup = WorkflowGroup("Well Spacing Gun Barrel Plot Workflow", self._context, self._factory)
@@ -67,6 +66,8 @@ class WorkflowManager:
         workgroup.add_task(TASKS.CREATE_EXCEL_NATIVE_GUN_BARREL_PLOT.value)
         if self._context.target_well_information_file:                        
             workgroup.run()
+        if os.path.exists(os.path.join(self.context.project_path, f"RUNNING")):
+            os.remove(os.path.join(self.context.project_path, f"RUNNING"))
 
     @property
     def context(self):
@@ -78,7 +79,7 @@ class WorkflowManager:
         self._factory = TaskFactory(self._context)
 
 if __name__ == "__main__":
-    context = Context().pokerlake_5_mile()
+    context = Context().test_redhills()
     workflow_manager = WorkflowManager(context)
     workflow_manager.project_initiation_workflow()
     workflow_manager.base_workflow()

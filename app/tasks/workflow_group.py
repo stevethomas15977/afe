@@ -20,6 +20,7 @@ class WorkflowGroup:
         print(f"Running workflow group: {self.name}")
         for task in self.tasks:
             try:
+                write_to_file(os.path.join(self.context.project_path, f"RUNNING"),f"Running")
                 print(f"Starting {task.__class__.__name__}...")
                 task.execute()
                 print(f"{task.__class__.__name__} completed successfully.")

@@ -41,7 +41,7 @@ class AnalysisService:
     def get_simluated_well(self) -> Analysis:
         return self.repository.select_simulated_well()
 
-    def get_simulated_target_wells(self) -> Analysis:
+    def get_simulated_target_wells(self) -> list[Analysis]:
         return self.repository.select_simulated_target_wells()
     
     def get_shallowest(self) -> int:

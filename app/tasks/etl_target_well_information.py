@@ -24,10 +24,10 @@ class ETLTargetWellInformation(Task):
                 # Ensure the XY coordinates are provided
                 if (target_well.x_surface_location is None or
                     target_well.y_surface_location is None or
-                    target_well.x_first_take_point is None or
-                    target_well.y_first_take_point is None or
-                    target_well.x_last_take_point is None or
-                    target_well.y_last_take_point is None or
+                    # target_well.x_first_take_point is None or
+                    # target_well.y_first_take_point is None or
+                    # target_well.x_last_take_point is None or
+                    # target_well.y_last_take_point is None or
                     target_well.x_bottom_hole is None or
                     target_well.y_bottom_hole is None or
                     target_well.nad_system is None or
@@ -36,7 +36,7 @@ class ETLTargetWellInformation(Task):
                     raise ValueError(message)
                 
                 # Ensure state specific information is provided
-                if target_well.state == "TX":
+                if target_well.state == "TX" or target_well.state == "Texas":
 
                     # Coorelate NAD System and Zone to Datum and SPC Zone
                     if "NAD27" == target_well.nad_system:
@@ -48,7 +48,11 @@ class ETLTargetWellInformation(Task):
                     else:
                         raise ValueError(f"NAD System {target_well.nad_system} is not supported")
                      
-                    if "TX(C)" == target_well.nad_zone or "C" == target_well.nad_zone:
+                    if "Central" == target_well.nad_zone:
+                        spcZone = 4203
+                    elif "East" == target_well.nad_zone:
+                        spcZone = 4203
+                    elif "West" == target_well.nad_zone:
                         spcZone = 4203
                     else:
                         raise ValueError(f"NAD Zone {target_well.nad_zone} is not supported")
@@ -62,7 +66,7 @@ class ETLTargetWellInformation(Task):
                         tlss = tlss_service.get_by_county_abstract(county=target_well.county, abstract=target_well.tx_abstract_southwest_corner)
                         if tlss is None:
                             raise ValueError(f"PLSS not found for {target_well.state}, {target_well.county}, {target_well.tx_block_southwest_corner}, {target_well.nm_tx_section_southwest_corner}")    
-                elif target_well.state == "NM":
+                elif target_well.state == "NM" or target_well.state == "New Mexico":
 
                     # Coorelate NAD System and Zone to Datum and SPC Zone
                     if "NAD27" == target_well.nad_system:
@@ -74,7 +78,11 @@ class ETLTargetWellInformation(Task):
                     else:
                         raise ValueError(f"NAD System {target_well.nad_system} is not supported")
                      
-                    if "E" == target_well.nad_zone or "East" == target_well.nad_zone:
+                    if "Central" == target_well.nad_zone:
+                        spcZone = 3001
+                    elif "East" == target_well.nad_zone:
+                        spcZone = 3001
+                    elif "West" == target_well.nad_zone:
                         spcZone = 3001
                     else:
                         raise ValueError(f"NAD Zone {target_well.nad_zone} is not supported")
@@ -90,7 +98,7 @@ class ETLTargetWellInformation(Task):
                         range = int(target_well.nm_range_southwest_corner[:-1])
                         range_direction = target_well.nm_range_southwest_corner[-1]
                         section = int(target_well.nm_tx_section_southwest_corner)
-                        nmlss = nmlss_service.get_by_township_range_section(township=township, township_direction=township_direction, range=range, range_direction=range_direction, section=section)
+                        nmlss = nmlss_service.get_by_county_township_range_section(county=target_well.county, township=township, township_direction=township_direction, range=range, range_direction=range_direction, section=section)
                         if nmlss is None:
                             raise ValueError(f"PLSS not found for {target_well.state}, {target_well.nw_township_southwest_corner}, {target_well.nm_range_southwest_corner}, {target_well.nm_tx_section_southwest_corner}")
                 else:
@@ -114,15 +122,15 @@ class ETLTargetWellInformation(Task):
                                                                                                                 spcZone=spcZone,
                                                                                                                 inDatum=inDatum)
                 
-                target_well.latitude_first_take_point, target_well.longitude_first_take_point = spc_feet_to_latlon(northing=target_well.y_first_take_point,
-                                                                                                                easting=target_well.x_first_take_point,
-                                                                                                                spcZone=spcZone,
-                                                                                                                inDatum=inDatum)
+                # target_well.latitude_first_take_point, target_well.longitude_first_take_point = spc_feet_to_latlon(northing=target_well.y_first_take_point,
+                #                                                                                                 easting=target_well.x_first_take_point,
+                #                                                                                                 spcZone=spcZone,
+                #                                                                                                 inDatum=inDatum)
 
-                target_well.latitude_last_take_point, target_well.longitude_last_take_point = spc_feet_to_latlon(northing=target_well.y_last_take_point,
-                                                                                                                 easting=target_well.x_last_take_point,
-                                                                                                                 spcZone=spcZone,
-                                                                                                                 inDatum=inDatum)
+                # target_well.latitude_last_take_point, target_well.longitude_last_take_point = spc_feet_to_latlon(northing=target_well.y_last_take_point,
+                #                                                                                                  easting=target_well.x_last_take_point,
+                #                                                                                                  spcZone=spcZone,
+                #                                                                                                  inDatum=inDatum)
 
                 target_well.latitude_bottom_hole, target_well.longitude_bottom_hole = spc_feet_to_latlon(northing=target_well.y_bottom_hole,
                                                                                                          easting=target_well.x_bottom_hole,

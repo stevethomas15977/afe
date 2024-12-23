@@ -638,7 +638,7 @@ def create_surface_map(context: Context,
                        target_wells: list[Analysis],
                        other_wells: list[Analysis]):
     try:
-        if target_well_information.state == "TX":
+        if target_well_information.state == "TX" or target_well_information.state == "Texas":
             plss_service = TexasLandSurveySystemService(context._texas_land_survey_system_database_path)
             plss = plss_service.get_by_county_abstract(county=target_well_information.county, 
                                                        abstract=target_well_information.tx_abstract_southwest_corner)
@@ -650,19 +650,20 @@ def create_surface_map(context: Context,
                                 tiles='OpenStreetMap')
             fips_codes = []
             fips_codes.append(plss.fips_code)
-            texas_plss_block_section_overlay(context=context, fip_codes=fips_codes, map=map)
-        elif target_well_information.state == "NM":
+            texas_plss_block_section_overlay(context=context, abstract=plss.abstract, fip_codes=fips_codes, map=map)
+        elif target_well_information.state == "NM" or target_well_information.state == "New Mexico":
             plss_service = NewMexicoLandSurveySystemService(context._new_mexico_land_survey_system_database_path)
             township = int(target_well_information.nw_township_southwest_corner[:-1])
             township_direction = target_well_information.nw_township_southwest_corner[-1]
             range = int(target_well_information.nm_range_southwest_corner[:-1])
             range_direction = target_well_information.nm_range_southwest_corner[-1]
             section = int(target_well_information.nm_tx_section_southwest_corner)
-            plss = plss_service.get_by_township_range_section(township=township, 
-                                                              township_direction=township_direction, 
-                                                              range=range, 
-                                                              range_direction=range_direction, 
-                                                              section=section)
+            plss = plss_service.get(county=target_well_information.county,
+                                    township=township, 
+                                    township_direction=township_direction, 
+                                    range=range, 
+                                    range_direction=range_direction, 
+                                    section=section)
             map = Map(location=[plss.southwest_latitude, 
                                 plss.southwest_longitude], 
                                 zoom_start=14, 
@@ -829,17 +830,17 @@ def create_3d_plot(context: Context,
         target_well = target_well_information
 
         # Set axis labels
-        if target_well.state == "TX":
+        if target_well.state == "TX" or target_well.state == "Texas":
             section_label = f"Section Line - {target_well.tx_abstract_southwest_corner}/{target_well.tx_block_southwest_corner}/{int(float(target_well.nm_tx_section_southwest_corner))}"
             plss = texas_land_survey_system_service.get_by_county_abstract_block_section(target_well.county, target_well.tx_abstract_southwest_corner, target_well.tx_block_southwest_corner, str(int(float(target_well.nm_tx_section_southwest_corner))))        
-        elif target_well.state == "NM":
+        elif target_well.state == "NM" or target_well.state == "New Mexico":
             section_label = f"Section Line - {target_well.nw_township_southwest_corner}/{target_well.nm_range_southwest_corner}/{int(float(target_well.nm_tx_section_southwest_corner))}"
             township = int(target_well.nw_township_southwest_corner[:-1])
             township_direction = target_well.nw_township_southwest_corner[-1]
             nm_range = int(target_well.nm_range_southwest_corner[:-1])
             range_direction = target_well.nm_range_southwest_corner[-1]
             section = int(target_well.nm_tx_section_southwest_corner)
-            plss = new_mexico_land_survey_system_service.get_by_township_range_section(township=township, township_direction=township_direction, range=nm_range, range_direction=range_direction, section=section)            
+            plss = new_mexico_land_survey_system_service.get(county=target_well.county, township=township, township_direction=township_direction, range=nm_range, range_direction=range_direction, section=section)            
 
         start = adjust_coordinate(plss.southwest_latitude, plss.southwest_longitude, 2640, "W")
         end = adjust_coordinate(plss.southwest_latitude, plss.southwest_longitude, 7920, "E")

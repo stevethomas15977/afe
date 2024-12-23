@@ -7,6 +7,9 @@ from sqlite3 import Connection
 from pandas import isna, read_excel
 import openpyxl
 openpyxl.reader.excel.warnings.simplefilter(action='ignore')
+import os
+import json
+from pandas import DataFrame
 
 headers = [
             "id", 
@@ -180,40 +183,40 @@ class LoadTargetWellInformation(Task):
             # Create connection to the database
             self.context.connection = Connection(self.context.db_path)
 
-            # Load the Excel file
-            df = read_excel(self.context.target_well_information_file, engine='openpyxl', header=None)
+            # Load the json file into a DataFrame
+            with open(os.path.join(self.context.logs_path, 'project.json'), 'rb') as file:
+                data = json.load(file)
 
-            # Find the row index where the first column has the text "No."
-            start_row = df[df[0] == 'No.'].index[0]
+            wells = []
+            for row in data['rows']:
+                well = {}
+                well['id'] = row['id']
+                well['name'] = row['name']
+                well['afe_landing_zone'] = row['lz']
+                well['logs_landing_zone'] = row['lz']
+                well['surveys_preforated_interval_ft'] = row['perf_int']
+                well['bhl_tvd_ss_ft'] = row['ssd']
+                well['x_surface_location'] = row['surface_x']
+                well['y_surface_location'] = row['surface_y']
+                well['x_bottom_hole'] = row['bottom_hole_x']
+                well['y_bottom_hole'] = row['bottom_hole_y']
+                well['nad_system'] = data['system']
+                well['nad_zone'] = data['zone']
+                well['state'] = data['state']
+                well['county'] = data['county']
+                if 'Texas' in well['state']:
+                    well['tx_abstract_southwest_corner'] = data['abstract']
+                    well['tx_block_southwest_corner'] = data['block']
+                if 'New Mexico' in well['state']:
+                    well['nw_township_southwest_corner'] = f"{data['township']}{data['township_direction']}"
+                    well['nm_range_southwest_corner'] = f"{data['range']}{data['range_direction']}"
+                well['nm_tx_section_southwest_corner'] = data['new_mexico_section']
+                wells.append(well)
+                
+            # Create empty DataFrame
+            df = DataFrame(wells, columns=headers)
 
-            # Adjust to start reading from start_row + 2
-            adjusted_start_row = start_row + 1
-
-            # Read the Excel file starting from the adjusted row without headers
-            wells = read_excel(
-                self.context.target_well_information_file,
-                skiprows=adjusted_start_row,
-                header=None,  # No headers applied yet
-                engine='openpyxl'
-            )
-
-            # Read the Excel file starting from the adjusted row with headers
-            wells = read_excel(
-                self.context.target_well_information_file,
-                skiprows=adjusted_start_row,
-                header=None,
-                names=headers,
-                engine='openpyxl'
-            )
-
-            # Identify the first row with NaN in the 'id' column
-            nan_row_index = wells[wells['id'].isna()].index.min()
-
-            # If a NaN value is found, slice the DataFrame up to that row
-            if not isna(nan_row_index):
-                wells = wells.iloc[:nan_row_index]
-
-            wells.to_sql('target_well_information', self.context.connection, if_exists='replace', index=False, dtype=dtype())
+            df.to_sql('target_well_information', self.context.connection, if_exists='replace', index=False, dtype=dtype())
             
             logger.info(f"{task}: {self.context.logs_path}")
         except Exception as e:
