@@ -18,13 +18,7 @@ resource "aws_lightsail_instance" "instance" {
     user_data = <<-EOF
         #!/bin/bash
         apt-get update -y
-        sudo apt-get install -y unzip jq python3-pip python3-dev python3-venv pipx nginx apache2-utils -y
-
-        # Install Chrome
-        wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-        sudo dpkg -i google-chrome-stable_current_amd64.deb
-        sudo apt install --fix-broken -y
-        sudo rm google-chrome-stable_current_amd64.deb
+        sudo apt-get install -y unzip jq python3-pip python3-dev python3-venv pipx -y
 
         # Install pipenv
         pipx ensurepath
