@@ -102,7 +102,7 @@ resource "aws_lightsail_instance" "instance" {
         NM_SECTION_COLUMN="FRSTDIVLAB"
         TX_ABSTRACT_COLUMN="ABSTRACT_L"
         USERNAME="afe-admin"
-        APP_SECRET=$APP_SECRET
+        APP_SECRET="$APP_SECRET"
         S3_BUCKET_NAME="$S3_BUCKET_NAME"
         GEOJSON_PATH="$GEOJSON_PATH"
         EOG
@@ -128,6 +128,8 @@ resource "aws_lightsail_instance" "instance" {
         [Install]
         WantedBy=multi-user.target
         EOT
+
+        sudo setcap 'cap_net_bind_service=+ep' /usr/bin/python3.12
 
         sudo systemctl daemon-reload
         sudo systemctl start afe
