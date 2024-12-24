@@ -496,4 +496,4 @@ def projects(project: str):
     time(project)
     ui.timer(15.0, lambda: time.refresh(project))
 
-ui.run(host='0.0.0.0', port=8080, title='AFE Analysis')
+ui.run(host='0.0.0.0', port=80, title='AFE Analysis')
