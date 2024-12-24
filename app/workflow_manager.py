@@ -55,10 +55,10 @@ class WorkflowManager:
 
     def gun_barrel_workflow(self):
         workgroup = WorkflowGroup("Well Spacing Gun Barrel Plot Workflow", self._context, self._factory)
-        workgroup.add_task(TASKS.GUN_BARREL_PLOT_WORKFLOW_DATABASE_MANAGEMENT.value)
-        workgroup.add_task(TASKS.DETERMINE_WELL_SPACING_GUN_BARREL_PLOT_WELLS.value)
-        workgroup.add_task(TASKS.CALCULATE_WELL_OVERLAP_PERCENTAGE.value)
-        workgroup.add_task(TASKS.ENRICH_GUN_BARREL.value)
+        # workgroup.add_task(TASKS.GUN_BARREL_PLOT_WORKFLOW_DATABASE_MANAGEMENT.value)
+        # workgroup.add_task(TASKS.DETERMINE_WELL_SPACING_GUN_BARREL_PLOT_WELLS.value)
+        # workgroup.add_task(TASKS.CALCULATE_WELL_OVERLAP_PERCENTAGE.value)
+        # workgroup.add_task(TASKS.ENRICH_GUN_BARREL.value)
         # workgroup.add_task(TASKS.CREATE_GUN_BARREL_PLOT.value)
         workgroup.add_task(TASKS.CREATE_CROSS_PLOT.value)
         workgroup.add_task(TASKS.CREATE_EXCEL_NATIVE_GUN_BARREL_PLOT.value)

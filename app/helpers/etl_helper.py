@@ -37,7 +37,10 @@ def load_wells(db_path:str , file_path: str) -> None:
             if "DELAWARE VERTICAL" == interval:
                 continue
             formation = row["Formation"]
+            if isna(row["FirstProdDate"]):
+                continue
             first_production_date = str(row["FirstProdDate"].strftime("%Y-%m-%d"))
+            
             surface_latitude = row["Latitude"]
             surface_longitude = row["Longitude"]
             bottom_hole_latitude = row["Latitude_BH"]
@@ -46,11 +49,14 @@ def load_wells(db_path:str , file_path: str) -> None:
             measured_depth = row["MD_FT"]
             kelly_bushing_elevation = row["ElevationKB_FT"]
             lateral_length = row["LateralLength_FT"]
-            if isna(row["PerfInterval_FT"]) or row["PerfInterval_FT"] is None:
+
+            if isna(row["PerfInterval_FT"]) :
                 perf_interval = row["LateralLength_FT"] 
             else:
                 perf_interval = row["PerfInterval_FT"]
+
             proppant_intensity = row["ProppantIntensity_LBSPerFT"]
+
             state = row["StateProvince"]
             county = row["County"]
             if state == "TX":
@@ -63,14 +69,17 @@ def load_wells(db_path:str , file_path: str) -> None:
             township = row["Township"] if state in ["TX", "NM"] else None
             range = row["Range"] if state == "NM" else None
             section = str(int(row["Section"])).zfill(2) if state in ["TX", "NM"] else None
+
+            if isna(row["CumOil_BBL"])  :
+                continue
             cumlative_oil = row["CumOil_BBL"]   
-            if notna(row["LastProducingMonth"]):
-                last_producing_month = str(row["LastProducingMonth"].strftime("%Y-%m-%d"))
-            else:
-                last_producing_month = None
+
+            if isna(row["LastProducingMonth"]):
+                continue
+            last_producing_month = str(row["LastProducingMonth"].strftime("%Y-%m-%d"))
+
             if isna(row["CumOil_BBLPer1000FT"]) or row["CumOil_BBLPer1000FT"] is None:
-                cumoil_bblper1000ft = None
-                cumoil_bblperft = None
+                continue
             else:
                 cumoil_bblper1000ft = row["CumOil_BBLPer1000FT"]
                 cumoil_bblperft = int(row["CumOil_BBLPer1000FT"]/1000)
