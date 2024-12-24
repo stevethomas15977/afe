@@ -76,9 +76,15 @@ resource "aws_lightsail_instance" "instance" {
         # Set up the environment variables
         export HTTP_PORT=80
 
+        all_ips=$(hostname -I)
+        private_ipv4=$(echo "$all_ips" | awk '{print $1}')
+        export PRIVATE_IPV4="$private_ipv4"
+
         sh -c "cat > $APP_PATH/.env" <<EOG
         PYTHONPATH="$PYTHONPATH:models:helpers:services:database"
-        VERSION="1.7.5.7"
+        VERSION="1.8"
+        HTTP_PORT="$HTTP_PORT"
+        PRIVATE_IPV4="$PRIVATE_IPV4"
         ENV="$ENV"
         APP="$APP"
         APP_ROOT="$APP_ROOT"

@@ -1,3 +1,4 @@
+from http import HTTPStatus
 from nicegui import ui, app, events, run
 from helpers import ( texas_plss_block_section_overlay,
                      apply_geojson_overlay,
@@ -496,4 +497,8 @@ def projects(project: str):
     time(project)
     ui.timer(15.0, lambda: time.refresh(project))
 
-ui.run(host='0.0.0.0', port=80, title='AFE Analysis')
+@app.api_route('/health', methods=['GET'])
+def health():
+    return HTTPStatus.OK
+
+ui.run(host=os.environ['PRIVATE_IPV4'], port=int(os.environ['HTTP_PORT']), title='AFE Analysis')
