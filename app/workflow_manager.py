@@ -17,8 +17,6 @@ class WorkflowManager:
         workgroup = WorkflowGroup("AFE Project Initiation Workflow", self._context, self._factory)
         workgroup.add_task(TASKS.CREATE_DATABASE.value)
         workgroup.add_task(TASKS.LOAD_LOOKUP_TABLES.value)
-        # if self._context.target_well_information_file:
-            # workgroup.add_task(TASKS.VALIDATE_TARGET_WELL_INFORMATION.value)
         workgroup.run()
         if os.path.exists(os.path.join(self.context.project_path, f"RUNNING")):
             os.remove(os.path.join(self.context.project_path, f"RUNNING"))
