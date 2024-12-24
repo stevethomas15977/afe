@@ -1,3 +1,6 @@
+# nicegui
+app/.nicegui/
+
 # Local .terraform directories
 **/.terraform/*
 
